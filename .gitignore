@@ -1,0 +1,31 @@
+# Dépendances
+node_modules/
+.dart_tool/
+.pub-cache/
+build/
+
+# Variables d'environnement (ne jamais committer)
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+.svelte-kit/
+backend/build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Flutter
+mobile/.dart_tool/
+mobile/build/

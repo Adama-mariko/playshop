@@ -1,0 +1,57 @@
+{
+  "name": "playshop-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node ace serve --watch",
+    "build": "node ace build --production",
+    "start": "node server.js",
+    "test": "node ace test",
+    "lint": "eslint . --ext=.ts",
+    "format": "prettier --write ."
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:adonis/typescriptApp",
+      "prettier"
+    ],
+    "plugins": [
+      "prettier"
+    ],
+    "rules": {
+      "prettier/prettier": [
+        "error"
+      ]
+    }
+  },
+  "eslintIgnore": [
+    "build"
+  ],
+  "prettier": {
+    "trailingComma": "es5",
+    "semi": false,
+    "singleQuote": true,
+    "useTabs": false,
+    "quoteProps": "consistent",
+    "bracketSpacing": true,
+    "arrowParens": "always",
+    "printWidth": 100
+  },
+  "dependencies": {
+    "@adonisjs/auth": "^8.2.3",
+    "@adonisjs/bouncer": "^2.3.0",
+    "@adonisjs/core": "^5.9.0",
+    "@adonisjs/lucid": "^18.4.0",
+    "@adonisjs/validator": "^12.6.0",
+    "adonis-preset-ts": "^2.1.0",
+    "mysql2": "^3.20.0",
+    "phc-argon2": "^1.1.4",
+    "reflect-metadata": "^0.2.2",
+    "source-map-support": "^0.5.21"
+  },
+  "devDependencies": {
+    "@adonisjs/assembler": "^5.9.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^4.9.5"
+  }
+}

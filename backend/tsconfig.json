@@ -1,0 +1,31 @@
+{
+  "extends": "./node_modules/adonis-preset-ts/tsconfig.json",
+  "include": ["**/*"],
+  "exclude": ["node_modules", "build"],
+  "compilerOptions": {
+    "outDir": "build",
+    "rootDir": "./",
+    "baseUrl": "./",
+    "sourceMap": true,
+    "paths": {
+      "App/*": ["./app/*"],
+      "Config/*": ["./config/*"],
+      "Contracts/*": ["./contracts/*"],
+      "Database/*": ["./database/*"],
+      "@ioc:Adonis/Core/Env": ["./node_modules/@adonisjs/env/build/adonis-typings/index.d.ts"],
+      "@ioc:Adonis/Core/HttpContext": ["./node_modules/@adonisjs/http-server/build/adonis-typings/index.d.ts"],
+      "@ioc:Adonis/Core/Route": ["./node_modules/@adonisjs/http-server/build/adonis-typings/index.d.ts"],
+      "@ioc:Adonis/Core/Server": ["./node_modules/@adonisjs/http-server/build/adonis-typings/index.d.ts"],
+      "@ioc:Adonis/Core/BodyParser": ["./node_modules/@adonisjs/bodyparser/build/adonis-typings/index.d.ts"],
+      "@ioc:Adonis/Core/Cors": ["./node_modules/@adonisjs/core/build/adonis-typings/cors.d.ts"],
+      "@ioc:Adonis/Core/Validator": ["./node_modules/@adonisjs/validator/build/adonis-typings/index.d.ts"],
+      "@ioc:Adonis/Core/Hash": ["./node_modules/@adonisjs/hash/build/adonis-typings/index.d.ts"],
+      "@ioc:Adonis/Core/HttpExceptionHandler": ["./node_modules/@adonisjs/core/build/adonis-typings/index.d.ts"],
+      "@ioc:Adonis/Core/Logger": ["./node_modules/@adonisjs/logger/build/adonis-typings/index.d.ts"],
+      "@ioc:Adonis/Lucid/Orm": ["./node_modules/@adonisjs/lucid/build/adonis-typings/index.d.ts"],
+      "@ioc:Adonis/Lucid/Schema": ["./node_modules/@adonisjs/lucid/build/adonis-typings/index.d.ts"],
+      "@ioc:Adonis/Lucid/Database": ["./node_modules/@adonisjs/lucid/build/adonis-typings/index.d.ts"],
+      "@ioc:Adonis/Addons/Auth": ["./node_modules/@adonisjs/auth/build/adonis-typings/index.d.ts"]
+    }
+  }
+}
