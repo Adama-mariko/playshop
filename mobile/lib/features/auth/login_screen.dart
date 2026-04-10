@@ -25,10 +25,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
 
-    // Après connexion réussie → retour à la navigation principale
+    // Après connexion réussie → navigation principale
     ref.listen(authProvider, (prev, next) {
       if (!prev!.isAuthenticated && next.isAuthenticated) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        Navigator.of(context).pushReplacementNamed('/home');
       }
     });
 

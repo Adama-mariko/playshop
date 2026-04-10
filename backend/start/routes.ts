@@ -49,6 +49,7 @@ Route.group(() => {
   Route.get('/', 'OrdersController.index')
   Route.get('/:id', 'OrdersController.show')
   Route.post('/', 'OrdersController.store')
+  Route.delete('/:id', 'OrdersController.destroy')
   Route.patch('/:id/cancel', 'OrdersController.cancel')
 }).prefix('/api/orders').namespace('App/Controllers/Http').middleware('auth')
 

@@ -4,6 +4,45 @@ import Order from 'App/Models/Order'
 import Product from 'App/Models/Product'
 import Database from '@ioc:Adonis/Lucid/Database'
 
+/** Normalise un numéro ivoirien en +225XXXXXXXXXX */
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/[\s\-\.\(\)]/g, '')
+  if (digits.startsWith('+225')) return digits
+  if (digits.startsWith('00225')) return '+225' + digits.slice(5)
+  if (digits.length === 10) return '+225' + digits
+  return digits
+}
+
+/** Valide un numéro ivoirien selon le mode de paiement
+ *
+ * Côte d'Ivoire — préfixes valides (10 chiffres) :
+ *   01 → Moov
+ *   05, 06 → MTN / Wave
+ *   07, 08, 09 → Orange
+ *
+ * Orange Money : 07, 08, 09 uniquement
+ * Wave         : tous les réseaux (01, 05, 06, 07, 08, 09)
+ */
+function validatePhone(phone: string, method: string): string | null {
+  const digits = phone.replace(/[\s\-\.\(\)\+]/g, '').replace(/^225/, '')
+  if (digits.length !== 10) {
+    return 'Le numéro doit contenir exactement 10 chiffres (ex: 0701234567)'
+  }
+  const prefix = digits.substring(0, 2)
+  const validAll = ['01', '05', '06', '07', '08', '09']
+  const validOrange = ['07', '08', '09']
+
+  if (!validAll.includes(prefix)) {
+    return `Préfixe "${prefix}" non reconnu. Préfixes valides en Côte d'Ivoire : 01, 05, 06, 07, 08, 09`
+  }
+
+  if (method === 'orange_money' && !validOrange.includes(prefix)) {
+    return `Orange Money accepte uniquement les numéros Orange (07, 08, 09). Votre numéro commence par ${prefix}.`
+  }
+
+  return null // valide
+}
+
 export default class OrdersController {
   /**
    * GET /api/orders
@@ -53,8 +92,22 @@ export default class OrdersController {
           })
         ),
         paymentMethod: schema.enum(['orange_money', 'wave'] as const),
+        phoneNumber: schema.string({ trim: true }, [
+          rules.maxLength(20),
+          rules.regex(/^(\+225|00225)?[0-9]{10}$/),
+        ]),
       }),
+      messages: {
+        'phoneNumber.regex': 'Numéro invalide. Format attendu : 10 chiffres (ex: 0701234567) ou +225 suivi de 10 chiffres',
+        'phoneNumber.required': 'Le numéro de téléphone est obligatoire',
+      },
     })
+
+    // Validation du numéro ivoirien selon le mode de paiement
+    const phoneError = validatePhone(payload.phoneNumber, payload.paymentMethod)
+    if (phoneError) {
+      return response.badRequest({ message: phoneError })
+    }
 
     // Vérification du stock et calcul du total
     let totalAmount = 0
@@ -88,6 +141,8 @@ export default class OrdersController {
       newOrder.status = 'pending'
       newOrder.totalAmount = totalAmount
       newOrder.paymentMethod = payload.paymentMethod
+      // Normalisation : toujours +225XXXXXXXXXX
+      newOrder.phoneNumber = normalizePhone(payload.phoneNumber)
       newOrder.paymentStatus = 'pending'
       newOrder.useTransaction(trx)
       await newOrder.save()
@@ -113,6 +168,30 @@ export default class OrdersController {
       message: 'Commande créée avec succès',
       order,
     })
+  }
+
+  /**
+   * DELETE /api/orders/:id
+   * Suppression définitive d'une commande annulée ou en attente
+   */
+  public async destroy({ params, auth, response }: HttpContextContract) {
+    const user = auth.use('api').user!
+
+    const order = await Order.query()
+      .where('id', params.id)
+      .where('user_id', user.id)
+      .first()
+
+    if (!order) {
+      return response.notFound({ message: 'Commande introuvable' })
+    }
+
+    if (order.status === 'paid' || order.status === 'shipped') {
+      return response.badRequest({ message: 'Impossible de supprimer une commande payée ou expédiée' })
+    }
+
+    await order.delete()
+    return response.ok({ message: 'Commande supprimée' })
   }
 
   /**

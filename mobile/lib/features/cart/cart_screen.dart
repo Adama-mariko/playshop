@@ -32,7 +32,7 @@ class CartScreen extends ConsumerWidget {
                   const Text('Votre panier est vide', style: TextStyle(fontSize: 18, color: Colors.grey)),
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+                    onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil('/home', (r) => false),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFe94560),
                       foregroundColor: Colors.white,

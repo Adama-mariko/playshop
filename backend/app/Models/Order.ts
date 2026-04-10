@@ -20,6 +20,9 @@ export default class Order extends BaseModel {
   public paymentMethod: 'orange_money' | 'wave' | null
 
   @column()
+  public phoneNumber: string | null
+
+  @column()
   public paymentStatus: 'pending' | 'success' | 'failed'
 
   @column()

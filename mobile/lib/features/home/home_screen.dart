@@ -75,8 +75,7 @@ class HomeScreen extends ConsumerWidget {
                 );
               }
             },
-          ),
-        ],
+          ),        ],
       ),
       body: RefreshIndicator(
         color: const Color(0xFFe94560),
@@ -327,9 +326,13 @@ class _ProfileSheet extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.logout, color: Color(0xFFe94560)),
             title: const Text('Déconnexion', style: TextStyle(color: Color(0xFFe94560))),
-            onTap: () {
+            onTap: () async {
               Navigator.pop(context);
-              ref.read(authProvider.notifier).logout();
+              await ref.read(authProvider.notifier).logout();
+              if (context.mounted) {
+                Navigator.of(context, rootNavigator: true)
+                    .pushNamedAndRemoveUntil('/login', (r) => false);
+              }
             },
           ),
         ],

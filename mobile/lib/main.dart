@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/providers/auth_provider.dart';
+import 'features/splash/splash_screen.dart';
 import 'features/home/home_screen.dart';
 import 'features/cart/cart_screen.dart';
 import 'features/orders/orders_screen.dart';
@@ -9,22 +11,17 @@ import 'features/auth/register_screen.dart';
 import 'features/product/add_product_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Barre de statut transparente
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+  ));
   runApp(const ProviderScope(child: PlayShopApp()));
 }
 
-class PlayShopApp extends ConsumerStatefulWidget {
+class PlayShopApp extends StatelessWidget {
   const PlayShopApp({super.key});
-
-  @override
-  ConsumerState<PlayShopApp> createState() => _PlayShopAppState();
-}
-
-class _PlayShopAppState extends ConsumerState<PlayShopApp> {
-  @override
-  void initState() {
-    super.initState();
-    Future.microtask(() => ref.read(authProvider.notifier).fetchMe());
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,18 +31,25 @@ class _PlayShopAppState extends ConsumerState<PlayShopApp> {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFe94560)),
         useMaterial3: true,
+        fontFamily: 'Roboto',
       ),
-      home: const MainNavigation(),
+      // Splash screen comme page initiale
+      initialRoute: '/',
       routes: {
-        '/cart': (_) => const CartScreen(),
-        '/orders': (_) => const OrdersScreen(),
-        '/login': (_) => const LoginScreen(),
+        '/':       (_) => const SplashScreen(),
+        '/home':   (_) => const MainNavigation(),
+        '/login':  (_) => const LoginScreen(),
         '/register': (_) => const RegisterScreen(),
+        '/cart':   (_) => const CartScreen(),
+        '/orders': (_) => const OrdersScreen(),
       },
     );
   }
 }
 
+// ══════════════════════════════════════════════
+// Navigation principale (après connexion)
+// ══════════════════════════════════════════════
 class MainNavigation extends ConsumerStatefulWidget {
   const MainNavigation({super.key});
 
@@ -58,22 +62,22 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = ref.watch(authProvider);
-
     final tabs = [
       const HomeScreen(),
       const CartScreen(),
-      auth.isAuthenticated ? const OrdersScreen() : const LoginScreen(),
+      const OrdersScreen(),
     ];
 
     return Scaffold(
-      body: tabs[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: tabs,
+      ),
 
-      // FAB visible uniquement sur l'onglet Accueil et si connecté
-      floatingActionButton: (_currentIndex == 0 && auth.isAuthenticated)
+      // FAB visible uniquement sur l'onglet Accueil
+      floatingActionButton: _currentIndex == 0
           ? FloatingActionButton.extended(
-              onPressed: () => Navigator.push(
-                context,
+              onPressed: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(builder: (_) => const AddProductScreen()),
               ),
               backgroundColor: const Color(0xFFe94560),
@@ -83,16 +87,27 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
             )
           : null,
 
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
-        selectedItemColor: const Color(0xFFe94560),
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Accueil'),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart_outlined), activeIcon: Icon(Icons.shopping_cart), label: 'Panier'),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt_long_outlined), activeIcon: Icon(Icons.receipt_long), label: 'Commandes'),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (i) => setState(() => _currentIndex = i),
+        backgroundColor: Colors.white,
+        indicatorColor: const Color(0xFFe94560).withOpacity(0.12),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home, color: Color(0xFFe94560)),
+            label: 'Accueil',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.shopping_cart_outlined),
+            selectedIcon: Icon(Icons.shopping_cart, color: Color(0xFFe94560)),
+            label: 'Panier',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long, color: Color(0xFFe94560)),
+            label: 'Commandes',
+          ),
         ],
       ),
     );

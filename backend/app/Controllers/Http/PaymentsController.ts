@@ -1,41 +1,13 @@
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import { schema } from '@ioc:Adonis/Core/Validator'
 import Order from 'App/Models/Order'
-
-/*
-|==========================================================================
-| PaymentsController — Intégration Orange Money / Wave
-|==========================================================================
-|
-| FONCTIONNEMENT RÉEL :
-|
-| 1. Le client appelle POST /api/payments/initiate
-| 2. Le backend contacte l'API Orange Money ou Wave
-| 3. L'API retourne une URL de paiement
-| 4. Le client est redirigé vers cette URL pour payer sur son téléphone
-| 5. Après paiement, Orange Money/Wave appelle notre webhook (callback)
-| 6. Le backend met à jour le statut de la commande
-|
-| POUR ACTIVER LE VRAI PAIEMENT :
-|
-| Orange Money WebPay :
-|   - Créer un compte sur https://developer.orange.com
-|   - Obtenir client_id et client_secret
-|   - Ajouter dans .env : OM_CLIENT_ID, OM_CLIENT_SECRET, OM_BASE_URL
-|
-| Wave :
-|   - Créer un compte marchand sur https://www.wave.com/fr/business
-|   - Obtenir une API key
-|   - Ajouter dans .env : WAVE_API_KEY, WAVE_BASE_URL
-|
-| ACTUELLEMENT : Mode simulation (aucun vrai argent n'est débité)
-|
-*/
+  
 
 export default class PaymentsController {
+
   /**
    * POST /api/payments/initiate
-   * Initie un paiement pour une commande existante
+   * Génère les URLs de paiement pour Wave ou Orange Money
    */
   public async initiate({ request, auth, response }: HttpContextContract) {
     const user = auth.use('api').user!
@@ -59,57 +31,72 @@ export default class PaymentsController {
       return response.badRequest({ message: 'Cette commande est déjà payée' })
     }
 
-    // Génération d'une référence unique
-    const paymentReference = `PS-${Date.now()}-${order.id}`
-    order.paymentReference = paymentReference
+    // Référence unique pour identifier ce paiement
+    const reference = `PS-${Date.now()}-${order.id}`
+    order.paymentReference = reference
     await order.save()
 
-    // ----------------------------------------------------------------
-    // MODE SIMULATION
-    // En production, remplacer ce bloc par l'appel réel à l'API
-    // ----------------------------------------------------------------
-    const isSimulation = true // Passer à false quand les clés API sont configurées
+    const amount = order.totalAmount
+    const phone = order.phoneNumber ?? ''
 
-    if (isSimulation) {
+    // En production, remplacer par :
+    //   POST https://api.wave.com/v1/checkout/sessions
+    //   avec votre API key Wave
+   
+    if (order.paymentMethod === 'wave') {
+      const paymentUrl = `https://pay.wave.com/m/MARCHAND_ID/c/sn/?amount=${amount}&ref=${reference}&phone=${phone}`
+      const deepLink   = `wave://pay?amount=${amount}&ref=${reference}&merchant=MARCHAND_ID`
+
       return response.ok({
-        simulation: true,
-        message: 'SIMULATION — Aucun vrai paiement effectué',
-        paymentReference,
-        amount: order.totalAmount,
-        method: order.paymentMethod,
-        instructions: order.paymentMethod === 'orange_money'
-          ? `Envoyez ${order.totalAmount} FCFA au numéro marchand Orange Money et indiquez la référence : ${paymentReference}`
-          : `Envoyez ${order.totalAmount} FCFA au numéro marchand Wave et indiquez la référence : ${paymentReference}`,
+        method: 'wave',
+        reference,
+        amount,
+        phoneNumber: phone,
+        paymentUrl,   // Frontend → génère un QR code avec cette URL
+        deepLink,     // Mobile   → ouvre l'app Wave directement
+        instructions: `Scannez le QR code avec Wave ou ouvrez l'app Wave pour payer ${amount.toLocaleString('fr-FR')} FCFA`,
       })
     }
 
-    // ----------------------------------------------------------------
-    // PRODUCTION — Orange Money WebPay (décommenter quand prêt)
-    // ----------------------------------------------------------------
-    // if (order.paymentMethod === 'orange_money') {
-    //   const omResponse = await this._initiateOrangeMoney(order, paymentReference)
-    //   return response.ok({ paymentUrl: omResponse.payment_url, paymentReference })
-    // }
+    // En production, remplacer par :
+    //   POST https://api.orange.com/orange-money-webpay/dev/v1/webpayment
+    //   avec votre client_id et client_secret Orange
+    
+    if (order.paymentMethod === 'orange_money') {
+      const paymentUrl = `https://webpay.orange.sn/pay?amount=${amount}&ref=${reference}&phone=${phone}`
+      const deepLink   = `orangemoney://pay?amount=${amount}&ref=${reference}&phone=${phone}`
 
-    // ----------------------------------------------------------------
-    // PRODUCTION — Wave (décommenter quand prêt)
-    // ----------------------------------------------------------------
-    // if (order.paymentMethod === 'wave') {
-    //   const waveResponse = await this._initiateWave(order, paymentReference)
-    //   return response.ok({ paymentUrl: waveResponse.wave_launch_url, paymentReference })
-    // }
+      return response.ok({
+        method: 'orange_money',
+        reference,
+        amount,
+        phoneNumber: phone,
+        paymentUrl,   // Frontend → redirige vers cette page Orange Money
+        deepLink,     // Mobile   → ouvre l'app Orange Money directement
+        instructions: `Cliquez sur le lien ou ouvrez Orange Money pour payer ${amount.toLocaleString('fr-FR')} FCFA`,
+      })
+    }
+
+    return response.badRequest({ message: 'Méthode de paiement non supportée' })
   }
 
   /**
    * POST /api/payments/callback
-   * Webhook appelé automatiquement par Orange Money ou Wave après paiement
-   * NE PAS appeler manuellement — c'est Orange Money/Wave qui appelle cette route
+   * Webhook appelé automatiquement par Wave ou Orange Money après paiement
+   * NE PAS appeler manuellement — c'est Wave/Orange qui appelle cette route
+   *
+   * Wave envoie   : { reference, status: "succeeded" | "failed" }
+   * Orange envoie : { reference, status: "SUCCESS" | "FAILED" }
    */
   public async callback({ request, response }: HttpContextContract) {
-    const { reference, status } = request.only(['reference', 'status'])
+    const body = request.all()
 
-    if (!reference || !status) {
-      return response.badRequest({ message: 'Paramètres manquants' })
+    const reference = body.reference || body.ref
+    const rawStatus  = body.status || body.payment_status || ''
+    const isSuccess  = ['succeeded', 'SUCCESS', 'success', 'SUCCESSFUL'].includes(rawStatus)
+
+    if (!reference) {
+      return response.badRequest({ message: 'Référence manquante' })
     }
 
     const order = await Order.query().where('payment_reference', reference).first()
@@ -118,7 +105,7 @@ export default class PaymentsController {
       return response.notFound({ message: 'Commande introuvable pour cette référence' })
     }
 
-    if (status === 'SUCCESS') {
+    if (isSuccess) {
       order.paymentStatus = 'success'
       order.status = 'paid'
     } else {
@@ -128,16 +115,43 @@ export default class PaymentsController {
     await order.save()
 
     return response.ok({
-      message: 'Statut mis à jour',
+      received: true,
       orderId: order.id,
       paymentStatus: order.paymentStatus,
     })
   }
 
   /**
+   * GET /api/payments/status/:orderId
+   * Vérifie si le paiement a été validé
+   * Appelé en polling toutes les 3 secondes depuis le frontend et le mobile
+   */
+  public async status({ params, auth, response }: HttpContextContract) {
+    const user = auth.use('api').user!
+
+    const order = await Order.query()
+      .where('id', params.orderId)
+      .where('user_id', user.id)
+      .first()
+
+    if (!order) {
+      return response.notFound({ message: 'Commande introuvable' })
+    }
+
+    return response.ok({
+      orderId: order.id,
+      paymentStatus: order.paymentStatus,  // pending | success | failed
+      orderStatus: order.status,           // pending | paid | shipped | cancelled
+      paymentReference: order.paymentReference,
+      totalAmount: order.totalAmount,
+      paymentMethod: order.paymentMethod,
+      phoneNumber: order.phoneNumber,
+    })
+  }
+
+  /**
    * PATCH /api/payments/confirm-manual/:orderId
-   * Confirmation manuelle d'un paiement (pour la simulation ou paiement cash)
-   * À utiliser uniquement en développement ou pour confirmer un paiement manuel
+   * Simule une confirmation de paiement — pour les tests Postman uniquement
    */
   public async confirmManual({ params, auth, response }: HttpContextContract) {
     const user = auth.use('api').user!
@@ -160,35 +174,10 @@ export default class PaymentsController {
     await order.save()
 
     return response.ok({
-      message: 'Paiement confirmé manuellement',
-      orderId: order.id,
-      status: order.status,
-    })
-  }
-
-  /**
-   * GET /api/payments/status/:orderId
-   * Vérifie le statut de paiement d'une commande
-   */
-  public async status({ params, auth, response }: HttpContextContract) {
-    const user = auth.use('api').user!
-
-    const order = await Order.query()
-      .where('id', params.orderId)
-      .where('user_id', user.id)
-      .first()
-
-    if (!order) {
-      return response.notFound({ message: 'Commande introuvable' })
-    }
-
-    return response.ok({
+      message: 'Paiement confirmé (simulation)',
       orderId: order.id,
       paymentStatus: order.paymentStatus,
       orderStatus: order.status,
-      paymentReference: order.paymentReference,
-      totalAmount: order.totalAmount,
-      paymentMethod: order.paymentMethod,
     })
   }
 }

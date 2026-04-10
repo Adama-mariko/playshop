@@ -27,7 +27,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final auth = ref.watch(authProvider);
 
     ref.listen(authProvider, (prev, next) {
-      if (next.isAuthenticated) Navigator.popUntil(context, (route) => route.isFirst);
+      if (next.isAuthenticated) Navigator.of(context).pushReplacementNamed('/home');
     });
 
     return Scaffold(
