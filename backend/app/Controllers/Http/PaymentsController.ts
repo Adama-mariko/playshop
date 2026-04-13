@@ -1,21 +1,20 @@
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import { schema } from '@ioc:Adonis/Core/Validator'
+import Env from '@ioc:Adonis/Core/Env'
 import Order from 'App/Models/Order'
-  
+import JekoService from 'App/Services/JekoService'
 
 export default class PaymentsController {
 
   /**
    * POST /api/payments/initiate
-   * Génère les URLs de paiement pour Wave ou Orange Money
+   * Crée une demande de paiement via l'API Jèko
    */
   public async initiate({ request, auth, response }: HttpContextContract) {
     const user = auth.use('api').user!
 
     const { orderId } = await request.validate({
-      schema: schema.create({
-        orderId: schema.number(),
-      }),
+      schema: schema.create({ orderId: schema.number() }),
     })
 
     const order = await Order.query()
@@ -23,108 +22,133 @@ export default class PaymentsController {
       .where('user_id', user.id)
       .first()
 
-    if (!order) {
-      return response.notFound({ message: 'Commande introuvable' })
-    }
-
+    if (!order) return response.notFound({ message: 'Commande introuvable' })
     if (order.paymentStatus === 'success') {
       return response.badRequest({ message: 'Cette commande est déjà payée' })
     }
 
-    // Référence unique pour identifier ce paiement
     const reference = `PS-${Date.now()}-${order.id}`
-    order.paymentReference = reference
-    await order.save()
+    const appUrl = Env.get('APP_URL', 'http://localhost:3333')
 
-    const amount = order.totalAmount
-    const phone = order.phoneNumber ?? ''
+    try {
+      // Récupérer le storeId
+      const storeId = await JekoService.getStoreId()
 
-    // En production, remplacer par :
-    //   POST https://api.wave.com/v1/checkout/sessions
-    //   avec votre API key Wave
-   
-    if (order.paymentMethod === 'wave') {
-      const paymentUrl = `https://pay.wave.com/m/MARCHAND_ID/c/sn/?amount=${amount}&ref=${reference}&phone=${phone}`
-      const deepLink   = `wave://pay?amount=${amount}&ref=${reference}&merchant=MARCHAND_ID`
+      // Créer la demande de paiement sur Jèko
+      const jekoPayment = await JekoService.createPaymentRequest({
+        storeId,
+        amountCents: Math.round(order.totalAmount), // XOF : pas de conversion centimes
+        currency: 'XOF',
+        reference,
+        paymentMethod: JekoService.mapPaymentMethod(order.paymentMethod ?? 'wave'),
+        successUrl: `${appUrl}/api/payments/jeko-success?ref=${reference}`,
+        errorUrl: `${appUrl}/api/payments/jeko-error?ref=${reference}`,      })
+
+      // Sauvegarder la référence et l'ID Jèko
+      order.paymentReference = reference
+      order.jekoPaymentId = jekoPayment.id
+      await order.save()
 
       return response.ok({
-        method: 'wave',
+        method: order.paymentMethod,
         reference,
-        amount,
-        phoneNumber: phone,
-        paymentUrl,   // Frontend → génère un QR code avec cette URL
-        deepLink,     // Mobile   → ouvre l'app Wave directement
-        instructions: `Scannez le QR code avec Wave ou ouvrez l'app Wave pour payer ${amount.toLocaleString('fr-FR')} FCFA`,
+        amount: order.totalAmount,
+        phoneNumber: order.phoneNumber ?? '',
+        paymentUrl: jekoPayment.redirectUrl,  // URL de redirection Jèko
+        jekoPaymentId: jekoPayment.id,
+        instructions: `Vous allez être redirigé vers ${order.paymentMethod === 'wave' ? 'Wave' : 'Orange Money'} pour payer ${order.totalAmount.toLocaleString('fr-FR')} FCFA`,
+      })
+    } catch (e: any) {
+      const msg = e?.response?.data?.message ?? e?.message ?? 'Erreur Jèko'
+      return response.serviceUnavailable({
+        message: `Paiement indisponible : ${msg}. Veuillez contacter le support.`,
       })
     }
-
-    // En production, remplacer par :
-    //   POST https://api.orange.com/orange-money-webpay/dev/v1/webpayment
-    //   avec votre client_id et client_secret Orange
-    
-    if (order.paymentMethod === 'orange_money') {
-      const paymentUrl = `https://webpay.orange.sn/pay?amount=${amount}&ref=${reference}&phone=${phone}`
-      const deepLink   = `orangemoney://pay?amount=${amount}&ref=${reference}&phone=${phone}`
-
-      return response.ok({
-        method: 'orange_money',
-        reference,
-        amount,
-        phoneNumber: phone,
-        paymentUrl,   // Frontend → redirige vers cette page Orange Money
-        deepLink,     // Mobile   → ouvre l'app Orange Money directement
-        instructions: `Cliquez sur le lien ou ouvrez Orange Money pour payer ${amount.toLocaleString('fr-FR')} FCFA`,
-      })
-    }
-
-    return response.badRequest({ message: 'Méthode de paiement non supportée' })
   }
 
   /**
-   * POST /api/payments/callback
-   * Webhook appelé automatiquement par Wave ou Orange Money après paiement
-   * NE PAS appeler manuellement — c'est Wave/Orange qui appelle cette route
-   *
-   * Wave envoie   : { reference, status: "succeeded" | "failed" }
-   * Orange envoie : { reference, status: "SUCCESS" | "FAILED" }
+   * GET /api/payments/jeko-success
+   * Callback Jèko après paiement réussi
    */
-  public async callback({ request, response }: HttpContextContract) {
-    const body = request.all()
-
-    const reference = body.reference || body.ref
-    const rawStatus  = body.status || body.payment_status || ''
-    const isSuccess  = ['succeeded', 'SUCCESS', 'success', 'SUCCESSFUL'].includes(rawStatus)
-
-    if (!reference) {
-      return response.badRequest({ message: 'Référence manquante' })
+  public async jekoSuccess({ request, response }: HttpContextContract) {
+    const ref = request.input('ref')
+    if (ref) {
+      const order = await Order.query().where('payment_reference', ref).first()
+      if (order) {
+        order.paymentStatus = 'success'
+        order.status = 'paid'
+        await order.save()
+      }
     }
+    // Rediriger vers le frontend
+    return response.redirect(`${Env.get('FRONTEND_URL', 'http://localhost:5173')}/checkout?status=success&ref=${ref}`)
+  }
+
+  /**
+   * GET /api/payments/jeko-error
+   * Callback Jèko après paiement échoué
+   */
+  public async jekoError({ request, response }: HttpContextContract) {
+    const ref = request.input('ref')
+    if (ref) {
+      const order = await Order.query().where('payment_reference', ref).first()
+      if (order) {
+        order.paymentStatus = 'failed'
+        await order.save()
+      }
+    }
+    return response.redirect(`${Env.get('FRONTEND_URL', 'http://localhost:5173')}/checkout?status=error&ref=${ref}`)
+  }
+
+  /**
+   * POST /api/payments/webhook
+   * Webhook Jèko — appelé automatiquement par Jèko après paiement
+   */
+  public async webhook({ request, response }: HttpContextContract) {
+    const body = request.all()
+    const reference = body.reference
+    const status = body.status // 'success' | 'failed' | 'pending'
+
+    if (!reference) return response.badRequest({ message: 'Référence manquante' })
 
     const order = await Order.query().where('payment_reference', reference).first()
+    if (!order) return response.notFound({ message: 'Commande introuvable' })
 
-    if (!order) {
-      return response.notFound({ message: 'Commande introuvable pour cette référence' })
-    }
-
-    if (isSuccess) {
+    if (status === 'success') {
       order.paymentStatus = 'success'
       order.status = 'paid'
-    } else {
+    } else if (status === 'failed' || status === 'expired') {
       order.paymentStatus = 'failed'
     }
 
     await order.save()
+    return response.ok({ received: true, orderId: order.id, paymentStatus: order.paymentStatus })
+  }
 
-    return response.ok({
-      received: true,
-      orderId: order.id,
-      paymentStatus: order.paymentStatus,
-    })
+  /**
+   * POST /api/payments/callback  (ancien — gardé pour compatibilité)
+   */
+  public async callback({ request, response }: HttpContextContract) {
+    const body = request.all()
+    const reference = body.reference || body.ref
+    const rawStatus = body.status || body.payment_status || ''
+    const isSuccess = ['succeeded', 'SUCCESS', 'success', 'SUCCESSFUL'].includes(rawStatus)
+
+    if (!reference) return response.badRequest({ message: 'Référence manquante' })
+
+    const order = await Order.query().where('payment_reference', reference).first()
+    if (!order) return response.notFound({ message: 'Commande introuvable' })
+
+    order.paymentStatus = isSuccess ? 'success' : 'failed'
+    if (isSuccess) order.status = 'paid'
+    await order.save()
+
+    return response.ok({ received: true, orderId: order.id, paymentStatus: order.paymentStatus })
   }
 
   /**
    * GET /api/payments/status/:orderId
-   * Vérifie si le paiement a été validé
-   * Appelé en polling toutes les 3 secondes depuis le frontend et le mobile
+   * Polling du statut — vérifie aussi sur Jèko si le paiement est en attente
    */
   public async status({ params, auth, response }: HttpContextContract) {
     const user = auth.use('api').user!
@@ -134,14 +158,27 @@ export default class PaymentsController {
       .where('user_id', user.id)
       .first()
 
-    if (!order) {
-      return response.notFound({ message: 'Commande introuvable' })
+    if (!order) return response.notFound({ message: 'Commande introuvable' })
+
+    // Si en attente et qu'on a un ID Jèko, vérifier le statut en temps réel
+    if (order.paymentStatus === 'pending' && order.jekoPaymentId) {
+      try {
+        const jekoStatus = await JekoService.getPaymentStatus(order.jekoPaymentId)
+        if (jekoStatus.status === 'success') {
+          order.paymentStatus = 'success'
+          order.status = 'paid'
+          await order.save()
+        } else if (jekoStatus.status === 'failed' || jekoStatus.status === 'expired') {
+          order.paymentStatus = 'failed'
+          await order.save()
+        }
+      } catch (_) {}
     }
 
     return response.ok({
       orderId: order.id,
-      paymentStatus: order.paymentStatus,  // pending | success | failed
-      orderStatus: order.status,           // pending | paid | shipped | cancelled
+      paymentStatus: order.paymentStatus,
+      orderStatus: order.status,
       paymentReference: order.paymentReference,
       totalAmount: order.totalAmount,
       paymentMethod: order.paymentMethod,
@@ -150,8 +187,7 @@ export default class PaymentsController {
   }
 
   /**
-   * PATCH /api/payments/confirm-manual/:orderId
-   * Simule une confirmation de paiement — pour les tests Postman uniquement
+   * PATCH /api/payments/confirm-manual/:orderId  (dev/test uniquement)
    */
   public async confirmManual({ params, auth, response }: HttpContextContract) {
     const user = auth.use('api').user!
@@ -161,10 +197,7 @@ export default class PaymentsController {
       .where('user_id', user.id)
       .first()
 
-    if (!order) {
-      return response.notFound({ message: 'Commande introuvable' })
-    }
-
+    if (!order) return response.notFound({ message: 'Commande introuvable' })
     if (order.paymentStatus === 'success') {
       return response.badRequest({ message: 'Cette commande est déjà confirmée' })
     }

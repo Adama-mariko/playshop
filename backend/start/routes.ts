@@ -8,11 +8,33 @@ Route.get('/', async () => {
 })
 
 // Servir les images uploadées avec headers CORS
-Route.get('/uploads/:filename', async ({ params, response }: HttpContextContract) => {
-  const filePath = Application.publicPath(`uploads/${params.filename}`)
+Route.get('/uploads/*', async ({ request, response }: HttpContextContract) => {
+  const fs = await import('fs')
+  const path = await import('path')
+  const filename = request.url().replace('/uploads/', '')
+  const decodedFilename = decodeURIComponent(filename)
+  const filePath = Application.publicPath(`uploads/${decodedFilename}`)
+
+  if (!fs.existsSync(filePath)) {
+    return response.notFound({ message: 'Image introuvable' })
+  }
+
+  const ext = path.extname(decodedFilename).toLowerCase()
+  const mimeTypes: Record<string, string> = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+  }
+  const contentType = mimeTypes[ext] ?? 'application/octet-stream'
+
+  response.header('Content-Type', contentType)
   response.header('Cross-Origin-Resource-Policy', 'cross-origin')
   response.header('Access-Control-Allow-Origin', '*')
-  return response.download(filePath)
+  response.header('Cache-Control', 'public, max-age=31536000')
+
+  return response.stream(fs.createReadStream(filePath))
 })
 
 /*
@@ -61,6 +83,9 @@ Route.group(() => {
 Route.group(() => {
   Route.post('/initiate', 'PaymentsController.initiate').middleware('auth')
   Route.post('/callback', 'PaymentsController.callback')
+  Route.post('/webhook', 'PaymentsController.webhook')
+  Route.get('/jeko-success', 'PaymentsController.jekoSuccess')
+  Route.get('/jeko-error', 'PaymentsController.jekoError')
   Route.patch('/confirm-manual/:orderId', 'PaymentsController.confirmManual').middleware('auth')
   Route.get('/status/:orderId', 'PaymentsController.status').middleware('auth')
 }).prefix('/api/payments').namespace('App/Controllers/Http')

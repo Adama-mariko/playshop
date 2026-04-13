@@ -1,82 +1,94 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
-  import { goto } from '$app/navigation'
   import { page } from '$app/stores'
   import { cart, cartTotal } from '$lib/stores/cart'
   import api from '$lib/api'
-  import QRCode from 'qrcode'
 
-  // ── Étape 1 : formulaire de commande
-  // ── Étape 2 : paiement (QR code Wave ou redirection Orange)
-  // ── Étape 3 : confirmation (paiement validé)
   type Step = 'form' | 'payment' | 'confirmed' | 'failed'
+  type PayMethod = 'wave' | 'orange' | 'mtn' | 'moov' | 'djamo'
+
+  const PAYMENT_OPTIONS: { value: PayMethod; label: string; icon: string; desc: string; prefixes: string[] }[] = [
+    { value: 'wave',   label: 'Wave',         icon: '🌊', desc: 'Paiement via Wave',         prefixes: ['01','05','06','07','08','09'] },
+    { value: 'orange', label: 'Orange Money', icon: '🟠', desc: 'Paiement via Orange Money', prefixes: ['07','08','09'] },
+    { value: 'mtn',    label: 'MTN MoMo',     icon: '🟡', desc: 'Paiement via MTN Mobile Money', prefixes: ['05','06'] },
+    { value: 'moov',   label: 'Moov Money',   icon: '🔵', desc: 'Paiement via Moov Money',   prefixes: ['01'] },
+    { value: 'djamo',  label: 'Djamo',        icon: '💳', desc: 'Paiement via Djamo',        prefixes: ['01','05','06','07','08','09'] },
+  ]
+
+  const NETWORK_LABELS: Record<string, string> = {
+    '01': 'Moov', '05': 'MTN', '06': 'MTN',
+    '07': 'Orange', '08': 'Orange', '09': 'Orange',
+  }
 
   let step = $state<Step>('form')
-  let paymentMethod = $state<'orange_money' | 'wave'>('wave')
+  let paymentMethod = $state<PayMethod>('wave')
   let phoneNumber = $state('')
   let loading = $state(false)
   let error = $state('')
 
-  // Données de paiement
   let orderId = $state(0)
   let reference = $state('')
   let paymentUrl = $state('')
-  let qrCodeDataUrl = $state('')
   let totalSnapshot = $state(0)
 
-  // Polling
   let pollInterval: ReturnType<typeof setInterval>
   let pollCount = $state(0)
   const MAX_POLL = 60
+  let timeLeft = $derived(Math.max(0, MAX_POLL - pollCount) * 3)
 
   onDestroy(() => clearInterval(pollInterval))
 
-  // Temps restant pour le polling
-  let timeLeft = $derived(Math.max(0, MAX_POLL - pollCount) * 3)
-
-  // Si on arrive avec ?orderId= (reprise d'un paiement en attente)
+  // Retour depuis Jèko ou reprise commande
   onMount(async () => {
+    const status = $page.url.searchParams.get('status')
+    const ref = $page.url.searchParams.get('ref')
+    if (status === 'success') { reference = ref ?? ''; step = 'confirmed'; return }
+    if (status === 'error')   { reference = ref ?? ''; step = 'failed';    return }
+
     const existingOrderId = $page.url.searchParams.get('orderId')
-    const existingMethod = $page.url.searchParams.get('method') as 'wave' | 'orange_money' | null
     if (existingOrderId) {
       orderId = parseInt(existingOrderId)
-      if (existingMethod) paymentMethod = existingMethod
-      // Récupérer les infos de la commande
       try {
         const { data } = await api.get(`/payments/status/${orderId}`)
         totalSnapshot = parseFloat(data.totalAmount)
         phoneNumber = data.phoneNumber ?? ''
-        // Réinitier le paiement
+        paymentMethod = (data.paymentMethod as PayMethod) ?? 'wave'
         await initiatePayment()
-      } catch {
-        error = 'Impossible de reprendre cette commande'
-      }
+      } catch { error = 'Impossible de reprendre cette commande' }
     }
   })
 
-  // ── Initier le paiement (utilisé aussi pour reprendre un paiement)
+  // Validation numéro
+  function phoneValidation(p: string, method: PayMethod) {
+    const digits = p.replace(/\D/g, '')
+    if (!digits) return { valid: false, error: '', network: '' }
+    if (digits.length < 10) return { valid: false, error: `${digits.length}/10 chiffres`, network: '' }
+    if (digits.length > 10) return { valid: false, error: 'Trop de chiffres (max 10)', network: '' }
+    const prefix = digits.substring(0, 2)
+    const opt = PAYMENT_OPTIONS.find(o => o.value === method)
+    if (opt && !opt.prefixes.includes(prefix)) {
+      return { valid: false, error: `${opt.label} : préfixes ${opt.prefixes.join(', ')} uniquement`, network: NETWORK_LABELS[prefix] ?? '' }
+    }
+    if (!Object.keys(NETWORK_LABELS).includes(prefix)) {
+      return { valid: false, error: `Préfixe "${prefix}" non reconnu`, network: '' }
+    }
+    return { valid: true, error: '', network: NETWORK_LABELS[prefix] ?? '' }
+  }
+
+  let phoneState = $derived(phoneValidation(phoneNumber, paymentMethod))
+
   async function initiatePayment() {
     const { data: payData } = await api.post('/payments/initiate', { orderId })
     reference = payData.reference
     paymentUrl = payData.paymentUrl
-
-    // QR code généré pour Wave ET Orange Money
-    qrCodeDataUrl = await QRCode.toDataURL(paymentUrl, {
-      width: 280, margin: 2,
-      color: {
-        dark: paymentMethod === 'wave' ? '#0066ff' : '#ff6600',
-        light: '#ffffff',
-      },
-    })
-
-    step = 'payment'
-    startPolling()
+    // Redirection directe vers Jèko pour tous les modes
+    window.location.href = paymentUrl
   }
 
-  // ── Étape 1 : créer la commande et initier le paiement
   async function placeOrder() {
     if ($cart.length === 0) return
     if (!phoneNumber.trim()) { error = 'Veuillez entrer votre numéro de téléphone'; return }
+    if (!phoneState.valid) { error = phoneState.error; return }
     loading = true; error = ''
     totalSnapshot = $cartTotal
     try {
@@ -95,58 +107,23 @@
     }
   }
 
-  // ── Polling : vérifie le statut toutes les 3 secondes
   function startPolling() {
     pollInterval = setInterval(async () => {
       pollCount++
-      if (pollCount > MAX_POLL) {
-        clearInterval(pollInterval)
-        return
-      }
+      if (pollCount > MAX_POLL) { clearInterval(pollInterval); return }
       try {
         const { data } = await api.get(`/payments/status/${orderId}`)
-        if (data.paymentStatus === 'success') {
-          clearInterval(pollInterval)
-          step = 'confirmed'
-        } else if (data.paymentStatus === 'failed') {
-          clearInterval(pollInterval)
-          step = 'failed'
-        }
+        if (data.paymentStatus === 'success') { clearInterval(pollInterval); step = 'confirmed' }
+        else if (data.paymentStatus === 'failed') { clearInterval(pollInterval); step = 'failed' }
       } catch {}
     }, 3000)
   }
 
-  // ── Confirmation manuelle (dev/test)
   async function confirmManual() {
     await api.patch(`/payments/confirm-manual/${orderId}`)
     clearInterval(pollInterval)
     step = 'confirmed'
   }
-
-  // Validation numéro ivoirien
-  const ORANGE_PREFIXES = ['07', '08', '09']
-  const ALL_PREFIXES = ['01', '05', '06', '07', '08', '09']
-  const NETWORK_LABELS: Record<string, string> = {
-    '01': 'Moov', '05': 'MTN', '06': 'MTN',
-    '07': 'Orange', '08': 'Orange', '09': 'Orange',
-  }
-
-  function getPhonePrefix(p: string) { return p.replace(/\D/g, '').substring(0, 2) }
-
-  function phoneValidation(p: string, method: string) {
-    const digits = p.replace(/\D/g, '')
-    if (!digits) return { valid: false, error: '', network: '' }
-    if (digits.length < 10) return { valid: false, error: `${digits.length}/10 chiffres`, network: '' }
-    if (digits.length > 10) return { valid: false, error: 'Trop de chiffres (max 10)', network: '' }
-    const prefix = digits.substring(0, 2)
-    if (!ALL_PREFIXES.includes(prefix)) return { valid: false, error: `Préfixe "${prefix}" non reconnu en Côte d'Ivoire`, network: '' }
-    if (method === 'orange_money' && !ORANGE_PREFIXES.includes(prefix)) {
-      return { valid: false, error: `Orange Money : numéros 07, 08, 09 uniquement (votre réseau : ${NETWORK_LABELS[prefix]})`, network: NETWORK_LABELS[prefix] }
-    }
-    return { valid: true, error: '', network: NETWORK_LABELS[prefix] ?? '' }
-  }
-
-  let phoneState = $derived(phoneValidation(phoneNumber, paymentMethod))
 </script>
 
 <svelte:head><title>Paiement — PlayShop</title></svelte:head>
@@ -212,40 +189,26 @@
             </small>
           {:else}
             <small class="phone-hint">
-              {#if paymentMethod === 'orange_money'}
-                Orange Money : numéros 07, 08, 09 (réseau Orange)
-              {:else}
-                Wave : tous réseaux — Orange (07-09), MTN (05-06), Moov (01)
-              {/if}
+              {PAYMENT_OPTIONS.find(o => o.value === paymentMethod)?.label} : préfixes {PAYMENT_OPTIONS.find(o => o.value === paymentMethod)?.prefixes.join(', ')}
             </small>
           {/if}
         </div>
 
         <!-- Choix du mode -->
         <div class="payment-options">
-          <label class="pay-option" class:selected={paymentMethod === 'wave'}>
-            <input type="radio" bind:group={paymentMethod} value="wave" />
-            <div class="pay-icon wave-icon">🌊</div>
-            <div class="pay-info">
-              <strong>Wave</strong>
-              <span>Scannez le QR code avec Wave</span>
-            </div>
-            {#if paymentMethod === 'wave'}
-              <span class="check">✓</span>
-            {/if}
-          </label>
-
-          <label class="pay-option" class:selected={paymentMethod === 'orange_money'}>
-            <input type="radio" bind:group={paymentMethod} value="orange_money" />
-            <div class="pay-icon om-icon">🟠</div>
-            <div class="pay-info">
-              <strong>Orange Money</strong>
-              <span>Redirection vers Orange Money</span>
-            </div>
-            {#if paymentMethod === 'orange_money'}
-              <span class="check">✓</span>
-            {/if}
-          </label>
+          {#each PAYMENT_OPTIONS as opt}
+            <label class="pay-option" class:selected={paymentMethod === opt.value}>
+              <input type="radio" bind:group={paymentMethod} value={opt.value} />
+              <div class="pay-icon">{opt.icon}</div>
+              <div class="pay-info">
+                <strong>{opt.label}</strong>
+                <span>{opt.desc}</span>
+              </div>
+              {#if paymentMethod === opt.value}
+                <span class="check">✓</span>
+              {/if}
+            </label>
+          {/each}
         </div>
 
         {#if error}
@@ -267,66 +230,16 @@
     </div>
 
   <!-- ═══════════════════════════════════════════════
-       ÉTAPE 2 — Paiement en cours
+       ÉTAPE 2 — Redirection en cours (loading)
   ═══════════════════════════════════════════════ -->
   {:else if step === 'payment'}
-    <div class="payment-screen">
-      <div class="card payment-card">
-
-        <!-- En-tête selon la méthode -->
-        <div class="payment-header" class:wave={paymentMethod === 'wave'} class:orange={paymentMethod === 'orange_money'}>
-          <span class="material-icons-round pay-logo-icon">
-            {paymentMethod === 'wave' ? 'waves' : 'circle'}
-          </span>
-          <div>
-            <h2>{paymentMethod === 'wave' ? 'Paiement Wave' : 'Paiement Orange Money'}</h2>
-            <p>Scannez le QR code avec votre application {paymentMethod === 'wave' ? 'Wave' : 'Orange Money'}</p>
-          </div>
-        </div>
-
-        <!-- QR Code — identique pour Wave et Orange Money -->
-        <div class="qr-container">
-          {#if qrCodeDataUrl}
-            <div class="qr-wrapper" class:qr-wave={paymentMethod === 'wave'} class:qr-orange={paymentMethod === 'orange_money'}>
-              <img src={qrCodeDataUrl} alt="QR Code paiement" class="qr-img" />
-            </div>
-          {/if}
-          <div class="qr-amount" class:orange-amount={paymentMethod === 'orange_money'}>
-            {totalSnapshot.toLocaleString('fr-FR')} FCFA
-          </div>
-        </div>
-
-        <!-- Instructions -->
-        <div class="payment-steps">
-          <div class="step-item">
-            <span class="step-num">1</span>
-            <span>Ouvrez votre application <strong>{paymentMethod === 'wave' ? 'Wave' : 'Orange Money'}</strong></span>
-          </div>
-          <div class="step-item">
-            <span class="step-num">2</span>
-            <span>Appuyez sur <strong>Scanner un QR code</strong></span>
-          </div>
-          <div class="step-item">
-            <span class="step-num">3</span>
-            <span>Scannez ce QR code et confirmez le paiement de <strong>{totalSnapshot.toLocaleString('fr-FR')} FCFA</strong></span>
-          </div>
-          <div class="step-item">
-            <span class="step-num">4</span>
-            <span>Revenez ici — la page se met à jour automatiquement</span>
-          </div>
-        </div>
-
-        <!-- Statut polling -->
-        <div class="polling-status">
-          <div class="pulse-dot" class:orange-dot={paymentMethod === 'orange_money'}></div>
-          <span>En attente de confirmation... ({timeLeft}s restantes)</span>
-        </div>
-
-        <div class="ref-line">Réf : <code>{reference}</code></div>
+    <div class="result-card card">
+      <div class="result-icon" style="background:#f0f9ff">
+        <span class="material-icons-round" style="color:#0066ff;font-size:2rem">open_in_new</span>
       </div>
-
-      <!-- Bouton test dev -->
-      <div class="dev-note">
+      <h2>Redirection en cours...</h2>
+      <p class="result-sub">Vous allez être redirigé vers Jèko pour finaliser votre paiement.</p>
+      <div class="dev-note" style="margin-top:1rem">
         <span class="material-icons-round" style="font-size:16px;vertical-align:-3px">build</span>
         Mode développement —
         <button class="link-btn" onclick={confirmManual}>Simuler la confirmation</button>

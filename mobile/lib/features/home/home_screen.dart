@@ -66,12 +66,49 @@ class HomeScreen extends ConsumerWidget {
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
                 );
               } else {
-                showModalBottomSheet(
+                showDialog(
                   context: context,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  builder: (ctx) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircleAvatar(
+                          radius: 32,
+                          backgroundColor: const Color(0xFFe94560),
+                          child: Text(
+                            auth.user!.name[0].toUpperCase(),
+                            style: const TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(auth.user!.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text(auth.user!.email, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                        const SizedBox(height: 20),
+                        ListTile(
+                          leading: const Icon(Icons.receipt_long, color: Color(0xFF1a1a2e)),
+                          title: const Text('Mes commandes'),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            Navigator.of(context, rootNavigator: true).pushNamed('/orders');
+                          },
+                        ),
+                        const Divider(),
+                        ListTile(
+                          leading: const Icon(Icons.logout, color: Color(0xFFe94560)),
+                          title: const Text('Déconnexion', style: TextStyle(color: Color(0xFFe94560), fontWeight: FontWeight.bold)),
+                          onTap: () async {
+                            Navigator.pop(ctx);
+                            await ref.read(authProvider.notifier).logout();
+                            if (context.mounted) {
+                              Navigator.of(context, rootNavigator: true)
+                                  .pushNamedAndRemoveUntil('/login', (r) => false);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                  builder: (_) => _ProfileSheet(auth: auth),
                 );
               }
             },
@@ -298,7 +335,7 @@ class _ProfileSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + MediaQuery.of(context).padding.bottom),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -327,12 +364,10 @@ class _ProfileSheet extends ConsumerWidget {
             leading: const Icon(Icons.logout, color: Color(0xFFe94560)),
             title: const Text('Déconnexion', style: TextStyle(color: Color(0xFFe94560))),
             onTap: () async {
+              final nav = Navigator.of(context, rootNavigator: true);
               Navigator.pop(context);
               await ref.read(authProvider.notifier).logout();
-              if (context.mounted) {
-                Navigator.of(context, rootNavigator: true)
-                    .pushNamedAndRemoveUntil('/login', (r) => false);
-              }
+              nav.pushNamedAndRemoveUntil('/login', (r) => false);
             },
           ),
         ],

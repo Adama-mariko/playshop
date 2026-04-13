@@ -68,12 +68,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> fetchMe() async {
+    final token = await ApiClient.getToken();
+    if (token == null) return;
     try {
       final res = await ApiClient.instance.get('/auth/me');
       state = AuthState(user: User.fromJson(res.data));
-    } catch (_) {
-      await ApiClient.deleteToken();
-    }
+    } on DioException catch (e) {
+      // Supprimer le token seulement si le serveur dit explicitement non autorisé
+      if (e.response?.statusCode == 401) {
+        await ApiClient.deleteToken();
+      }
+      // Erreur réseau : on garde l'état tel quel
+    } catch (_) {}
   }
 }
 

@@ -44,6 +44,7 @@
     "@adonisjs/lucid": "^18.4.0",
     "@adonisjs/validator": "^12.6.0",
     "adonis-preset-ts": "^2.1.0",
+    "axios": "^1.15.0",
     "mysql2": "^3.20.0",
     "phc-argon2": "^1.1.4",
     "reflect-metadata": "^0.2.2",

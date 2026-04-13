@@ -17,7 +17,7 @@ export default class Order extends BaseModel {
   public totalAmount: number
 
   @column()
-  public paymentMethod: 'orange_money' | 'wave' | null
+  public paymentMethod: 'orange_money' | 'wave' | 'mtn' | 'moov' | 'djamo' | null
 
   @column()
   public phoneNumber: string | null
@@ -27,6 +27,9 @@ export default class Order extends BaseModel {
 
   @column()
   public paymentReference: string | null
+
+  @column()
+  public jekoPaymentId: string | null
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

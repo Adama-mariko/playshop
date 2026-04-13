@@ -25,7 +25,10 @@
 
   function imageUrl(img: string | null) {
     if (!img) return null
-    return img.startsWith('http') ? img : `http://localhost:3333${img}`
+    if (img.startsWith('http')) return img
+    const parts = img.split('/')
+    const encoded = parts.map(p => encodeURIComponent(p)).join('/')
+    return `http://localhost:3333${encoded}`
   }
 
   function addToCart() {

@@ -52,11 +52,12 @@ export default class ProductsController {
       if (!image.isValid) {
         return response.badRequest({ message: `Image invalide : ${image.errors[0]?.message}` })
       }
+      const safeName = `${Date.now()}_${image.clientName.replace(/\s+/g, '-')}`
       await image.move(Application.publicPath('uploads'), {
-        name: `${Date.now()}_${image.clientName}`,
+        name: safeName,
         overwrite: true,
       })
-      imagePath = `/uploads/${image.fileName}`
+      imagePath = `/uploads/${safeName}`
     }
 
     const product = await Product.create({
@@ -93,11 +94,12 @@ export default class ProductsController {
       if (!image.isValid) {
         return response.badRequest({ message: `Image invalide : ${image.errors[0]?.message}` })
       }
+      const safeName = `${Date.now()}_${image.clientName.replace(/\s+/g, '-')}`
       await image.move(Application.publicPath('uploads'), {
-        name: `${Date.now()}_${image.clientName}`,
+        name: safeName,
         overwrite: true,
       })
-      product.image = `/uploads/${image.fileName}`
+      product.image = `/uploads/${safeName}`
     }
 
     if (name) product.name = name

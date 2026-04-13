@@ -14,4 +14,11 @@ export default Env.rules({
   MYSQL_USER: Env.schema.string(),
   MYSQL_PASSWORD: Env.schema.string.optional(),
   MYSQL_DB_NAME: Env.schema.string(),
+
+  JEKO_API_KEY: Env.schema.string(),
+  JEKO_API_KEY_ID: Env.schema.string(),
+  JEKO_API_URL: Env.schema.string(),
+  JEKO_STORE_ID: Env.schema.string.optional(),
+  APP_URL: Env.schema.string(),
+  FRONTEND_URL: Env.schema.string(),
 })

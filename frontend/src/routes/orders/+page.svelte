@@ -29,6 +29,14 @@
   let deleteModal = $state<{ open: boolean; order: Order | null }>({ open: false, order: null })
   let deleting = $state(false)
 
+  const PAYMENT_OPTIONS = [
+    { value: 'wave',   label: 'Wave',         icon: '🌊', desc: 'Paiement via Wave' },
+    { value: 'orange', label: 'Orange Money', icon: '🟠', desc: 'Paiement via Orange Money' },
+    { value: 'mtn',    label: 'MTN MoMo',     icon: '🟡', desc: 'Paiement via MTN Mobile Money' },
+    { value: 'moov',   label: 'Moov Money',   icon: '🔵', desc: 'Paiement via Moov Money' },
+    { value: 'djamo',  label: 'Djamo',        icon: '💳', desc: 'Paiement via Djamo' },
+  ]
+
   // Modal paiement
   let payModal = $state<{ open: boolean; order: Order | null; method: string }>({
     open: false, order: null, method: 'wave'
@@ -68,7 +76,10 @@
 
   function imageUrl(img: string | null) {
     if (!img) return null
-    return img.startsWith('http') ? img : `http://localhost:3333${img}`
+    if (img.startsWith('http')) return img
+    const parts = img.split('/')
+    const encoded = parts.map(p => encodeURIComponent(p)).join('/')
+    return `http://localhost:3333${encoded}`
   }
 
   function formatDate(d: string) {
@@ -135,33 +146,21 @@
       <p>Commande <strong>#{payModal.order?.id}</strong> — <strong>{parseInt(payModal.order?.total_amount ?? '0').toLocaleString('fr-FR')} FCFA</strong></p>
 
       <div class="pay-choices">
-        <label class="pay-choice" class:selected={payModal.method === 'wave'}>
-          <input type="radio" bind:group={payModal.method} value="wave" />
-          <div class="pay-choice-inner">
-            <span class="material-icons-round pay-icon">waves</span>
-            <div>
-              <strong>Wave</strong>
-              <span>QR code à scanner</span>
+        {#each PAYMENT_OPTIONS as opt}
+          <label class="pay-choice" class:selected={payModal.method === opt.value}>
+            <input type="radio" bind:group={payModal.method} value={opt.value} />
+            <div class="pay-choice-inner">
+              <span class="pay-emoji">{opt.icon}</span>
+              <div>
+                <strong>{opt.label}</strong>
+                <span>{opt.desc}</span>
+              </div>
             </div>
-          </div>
-          {#if payModal.method === 'wave'}
-            <span class="material-icons-round check-icon">check_circle</span>
-          {/if}
-        </label>
-
-        <label class="pay-choice" class:selected={payModal.method === 'orange_money'}>
-          <input type="radio" bind:group={payModal.method} value="orange_money" />
-          <div class="pay-choice-inner">
-            <span class="material-icons-round pay-icon" style="color:#ff6600">circle</span>
-            <div>
-              <strong>Orange Money</strong>
-              <span>Redirection Orange</span>
-            </div>
-          </div>
-          {#if payModal.method === 'orange_money'}
-            <span class="material-icons-round check-icon">check_circle</span>
-          {/if}
-        </label>
+            {#if payModal.method === opt.value}
+              <span class="material-icons-round check-icon">check_circle</span>
+            {/if}
+          </label>
+        {/each}
       </div>
 
       <div class="modal-actions">
@@ -260,10 +259,8 @@
             <div class="order-foot">
               <div class="foot-meta">
                 <span class="meta-tag">
-                  <span class="material-icons-round" style="font-size:15px">
-                    {order.payment_method === 'wave' ? 'waves' : 'circle'}
-                  </span>
-                  {order.payment_method === 'wave' ? 'Wave' : 'Orange Money'}
+                  <span class="material-icons-round" style="font-size:15px">payment</span>
+                  {PAYMENT_OPTIONS.find(o => o.value === order.payment_method)?.label ?? order.payment_method}
                 </span>
                 {#if order.phone_number}
                   <span class="meta-tag">
@@ -462,6 +459,7 @@
   .pay-choice input { display: none; }
   .pay-choice.selected { border-color: var(--primary); background: rgba(233,69,96,0.04); }
   .pay-choice-inner { display: flex; align-items: center; gap: 0.75rem; flex: 1; }
+  .pay-emoji { font-size: 1.5rem; }
   .pay-icon { font-size: 1.5rem !important; color: #0066ff; }
   .pay-choice-inner div { display: flex; flex-direction: column; }
   .pay-choice-inner strong { font-size: 0.9rem; }
