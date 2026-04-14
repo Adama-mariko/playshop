@@ -37,12 +37,13 @@ export default class PaymentsController {
       // Créer la demande de paiement sur Jèko
       const jekoPayment = await JekoService.createPaymentRequest({
         storeId,
-        amountCents: Math.round(order.totalAmount), // XOF : pas de conversion centimes
+        amountCents: Math.round(order.totalAmount),
         currency: 'XOF',
         reference,
         paymentMethod: JekoService.mapPaymentMethod(order.paymentMethod ?? 'wave'),
         successUrl: `${appUrl}/api/payments/jeko-success?ref=${reference}`,
-        errorUrl: `${appUrl}/api/payments/jeko-error?ref=${reference}`,      })
+        errorUrl: `${appUrl}/api/payments/jeko-error?ref=${reference}`,
+      })
 
       // Sauvegarder la référence et l'ID Jèko
       order.paymentReference = reference
@@ -81,23 +82,22 @@ export default class PaymentsController {
       }
     }
     const frontendUrl = Env.get('FRONTEND_URL', 'http://localhost:5173')
-    return response.redirect(`${frontendUrl}/checkout?status=success&ref=${ref}`)
+    // Redirection vers la page de confirmation avec message de succès
+    return response.redirect(`${frontendUrl}/payment/success?ref=${ref}`)
   }
 
-  /**
-   * GET /api/payments/jeko-error
-   * Callback Jèko après paiement échoué
-   */
   public async jekoError({ request, response }: HttpContextContract) {
     const ref = request.input('ref')
     if (ref) {
       const order = await Order.query().where('payment_reference', ref).first()
-      if (order) {
+      if (order && order.paymentStatus !== 'success') {
         order.paymentStatus = 'failed'
         await order.save()
       }
     }
-    return response.redirect(`${Env.get('FRONTEND_URL', 'http://localhost:5173')}/checkout?status=error&ref=${ref}`)
+    const frontendUrl = Env.get('FRONTEND_URL', 'http://localhost:5173')
+    // Redirection vers la page de confirmation avec statut échec
+    return response.redirect(`${frontendUrl}/payment/success?ref=${ref}&error=1`)
   }
 
   /**
@@ -105,20 +105,26 @@ export default class PaymentsController {
    * Webhook Jèko — transaction.completed
    */
   public async webhook({ request, response }: HttpContextContract) {
-    // 1. Vérification signature HMAC-SHA256 avec le raw body
+    const body = request.all()
     const secret = Env.get('JEKO_WEBHOOK_SECRET', '')
+
+    // Vérification signature HMAC-SHA256
+    // Jèko signe le raw body JSON — on le reconstruit de façon déterministe
     if (secret) {
       const crypto = await import('crypto')
       const signature = request.header('jeko-signature') ?? ''
-      // AdonisJS expose le raw body via request.raw()
-      const rawBody = request.raw() ?? JSON.stringify(request.all())
-      const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
-      if (signature && signature !== expected) {
-        return response.unauthorized({ message: 'Signature invalide' })
-      }
-    }
 
-    const body = request.all()
+      if (signature) {
+        // request.raw() fonctionne si AdonisJS l'a capturé, sinon on reconstruit
+        const rawBody = request.raw() ?? JSON.stringify(body)
+        const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
+
+        if (signature !== expected) {
+          return response.unauthorized({ message: 'Signature invalide' })
+        }
+      }
+      // Si pas de header signature → on accepte (tests Postman, dev local)
+    }
 
     // 2. Extraire la référence depuis transactionDetails (format Jèko)
     const reference = body.transactionDetails?.reference ?? body.reference ?? null
