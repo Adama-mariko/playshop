@@ -3,6 +3,7 @@ import { schema, rules } from '@ioc:Adonis/Core/Validator'
 import Order from 'App/Models/Order'
 import Product from 'App/Models/Product'
 import Database from '@ioc:Adonis/Lucid/Database'
+import JekoService from 'App/Services/JekoService'
 
 /** Normalise un numéro ivoirien en +225XXXXXXXXXX */
 function normalizePhone(phone: string): string {
@@ -39,6 +40,15 @@ function validatePhone(phone: string, method: string): string | null {
   if (method === 'orange_money' && !validOrange.includes(prefix)) {
     return `Orange Money accepte uniquement les numéros Orange (07, 08, 09). Votre numéro commence par ${prefix}.`
   }
+  if (method === 'orange' && !validOrange.includes(prefix)) {
+    return `Orange Money accepte uniquement les numéros Orange (07, 08, 09). Votre numéro commence par ${prefix}.`
+  }
+  if ((method === 'mtn') && !['05', '06'].includes(prefix)) {
+    return `MTN MoMo accepte uniquement les numéros MTN (05, 06). Votre numéro commence par ${prefix}.`
+  }
+  if (method === 'moov' && prefix !== '01') {
+    return `Moov Money accepte uniquement les numéros Moov (01). Votre numéro commence par ${prefix}.`
+  }
 
   return null // valide
 }
@@ -54,6 +64,23 @@ export default class OrdersController {
       .where('user_id', user.id)
       .preload('items', (q) => q.preload('product'))
       .orderBy('created_at', 'desc')
+
+    // Sync automatique des commandes en attente avec Jèko
+    for (const order of orders) {
+      if (order.paymentStatus === 'pending' && order.jekoPaymentId) {
+        try {
+          const jekoStatus = await JekoService.getPaymentStatus(order.jekoPaymentId)
+          if (jekoStatus.status === 'success') {
+            order.paymentStatus = 'success'
+            order.status = 'paid'
+            await order.save()
+          } else if (jekoStatus.status === 'failed' || jekoStatus.status === 'expired') {
+            order.paymentStatus = 'failed'
+            await order.save()
+          }
+        } catch (_) {}
+      }
+    }
 
     return response.ok(orders)
   }
@@ -81,6 +108,11 @@ export default class OrdersController {
    * POST /api/orders
    */
   public async store({ request, auth, response }: HttpContextContract) {
+    try {
+      await auth.use('api').authenticate()
+    } catch {
+      return response.unauthorized({ message: 'Authentification requise. Veuillez vous connecter.' })
+    }
     const user = auth.use('api').user!
 
     const payload = await request.validate({
@@ -91,7 +123,7 @@ export default class OrdersController {
             quantity: schema.number([rules.unsigned(), rules.range(1, 999)]),
           })
         ),
-        paymentMethod: schema.enum(['orange_money', 'wave'] as const),
+        paymentMethod: schema.enum(['wave', 'orange_money', 'orange', 'mtn', 'moov', 'djamo'] as const),
         phoneNumber: schema.string({ trim: true }, [
           rules.maxLength(20),
           rules.regex(/^(\+225|00225)?[0-9]{10}$/),

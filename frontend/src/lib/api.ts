@@ -16,12 +16,19 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+const PAYMENT_PATHS = ['/payments/', '/orders']
+
 api.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401 && browser) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      const url = error.config?.url ?? ''
+      const isPaymentRoute = PAYMENT_PATHS.some((p) => url.includes(p))
+      // Ne pas déconnecter si on est sur une route de paiement (retour Jèko, polling, etc.)
+      if (!isPaymentRoute) {
+        localStorage.removeItem('token')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

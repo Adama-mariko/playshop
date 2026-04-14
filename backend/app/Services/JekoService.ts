@@ -86,11 +86,13 @@ export default class JekoService {
   static mapPaymentMethod(method: string): JekoPaymentMethod {
     const map: Record<string, JekoPaymentMethod> = {
       wave: 'wave',
+      orange: 'orange',
       orange_money: 'orange',
       mtn: 'mtn',
       moov: 'moov',
       djamo: 'djamo',
     }
-    return map[method] ?? 'wave'
+    if (!map[method]) throw new Error(`Méthode de paiement non supportée : ${method}`)
+    return map[method]
   }
 }

@@ -6,6 +6,7 @@ import 'features/splash/splash_screen.dart';
 import 'features/home/home_screen.dart';
 import 'features/cart/cart_screen.dart';
 import 'features/orders/orders_screen.dart';
+import 'features/historique/historique_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/register_screen.dart';
 import 'features/product/add_product_screen.dart';
@@ -66,6 +67,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       const HomeScreen(),
       const CartScreen(),
       const OrdersScreen(),
+      const HistoriqueScreen(),
     ];
 
     return Scaffold(
@@ -107,6 +109,11 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long, color: Color(0xFFe94560)),
             label: 'Commandes',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history, color: Color(0xFFe94560)),
+            label: 'Historique',
           ),
         ],
       ),

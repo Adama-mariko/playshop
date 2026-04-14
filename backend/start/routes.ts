@@ -68,12 +68,12 @@ Route.group(() => {
 |--------------------------------------------------------------------------
 */
 Route.group(() => {
-  Route.get('/', 'OrdersController.index')
-  Route.get('/:id', 'OrdersController.show')
-  Route.post('/', 'OrdersController.store')
-  Route.delete('/:id', 'OrdersController.destroy')
-  Route.patch('/:id/cancel', 'OrdersController.cancel')
-}).prefix('/api/orders').namespace('App/Controllers/Http').middleware('auth')
+  Route.get('/', 'OrdersController.index').middleware('auth')
+  Route.get('/:id', 'OrdersController.show').middleware('auth')
+  Route.post('/', 'OrdersController.store').middleware('auth')
+  Route.delete('/:id', 'OrdersController.destroy').middleware('auth')
+  Route.patch('/:id/cancel', 'OrdersController.cancel').middleware('auth')
+}).prefix('/api/orders').namespace('App/Controllers/Http')
 
 /*
 |--------------------------------------------------------------------------
@@ -87,5 +87,5 @@ Route.group(() => {
   Route.get('/jeko-success', 'PaymentsController.jekoSuccess')
   Route.get('/jeko-error', 'PaymentsController.jekoError')
   Route.patch('/confirm-manual/:orderId', 'PaymentsController.confirmManual').middleware('auth')
-  Route.get('/status/:orderId', 'PaymentsController.status').middleware('auth')
+  Route.get('/status/:orderId', 'PaymentsController.status') // auth optionnelle gérée dans le controller
 }).prefix('/api/payments').namespace('App/Controllers/Http')

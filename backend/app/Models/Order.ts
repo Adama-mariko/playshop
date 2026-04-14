@@ -17,7 +17,7 @@ export default class Order extends BaseModel {
   public totalAmount: number
 
   @column()
-  public paymentMethod: 'orange_money' | 'wave' | 'mtn' | 'moov' | 'djamo' | null
+  public paymentMethod: 'wave' | 'orange' | 'mtn' | 'moov' | 'djamo' | null
 
   @column()
   public phoneNumber: string | null

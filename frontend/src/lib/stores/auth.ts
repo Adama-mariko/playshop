@@ -49,9 +49,12 @@ export const auth = {
     try {
       const { data } = await api.get('/auth/me')
       update((s) => ({ ...s, user: data }))
-    } catch {
-      if (browser) localStorage.removeItem('token')
-      update((s) => ({ ...s, user: null, token: null }))
+    } catch (e: any) {
+      // Ne déconnecter que sur 401 explicite, pas sur erreur réseau/timeout
+      if (e?.response?.status === 401) {
+        if (browser) localStorage.removeItem('token')
+        update((s) => ({ ...s, user: null, token: null }))
+      }
     }
   },
 }

@@ -19,6 +19,7 @@ export default Env.rules({
   JEKO_API_KEY_ID: Env.schema.string(),
   JEKO_API_URL: Env.schema.string(),
   JEKO_STORE_ID: Env.schema.string.optional(),
+  JEKO_WEBHOOK_SECRET: Env.schema.string.optional(),
   APP_URL: Env.schema.string(),
   FRONTEND_URL: Env.schema.string(),
 })

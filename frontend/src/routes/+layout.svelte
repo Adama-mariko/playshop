@@ -38,6 +38,7 @@
         <a href="/products" class:active={$page.url.pathname.startsWith('/products')}>Produits</a>
         {#if $isAuthenticated}
           <a href="/orders" class:active={$page.url.pathname === '/orders'}>Commandes</a>
+          <a href="/historique" class:active={$page.url.pathname === '/historique'}>Historique</a>
         {/if}
       </nav>
 
@@ -69,6 +70,7 @@
                   <span>{$auth?.user?.email}</span>
                 </div>
                 <a href="/orders" onclick={() => menuOpen = false}>Mes commandes</a>
+                <a href="/historique" onclick={() => menuOpen = false}>Historique</a>
                 <a href="/products/new" onclick={() => menuOpen = false}>Ajouter un produit</a>
                 <hr />
                 <button onclick={handleLogout}>Déconnexion</button>

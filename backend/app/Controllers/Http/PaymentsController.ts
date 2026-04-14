@@ -74,14 +74,14 @@ export default class PaymentsController {
     const ref = request.input('ref')
     if (ref) {
       const order = await Order.query().where('payment_reference', ref).first()
-      if (order) {
+      if (order && order.paymentStatus !== 'success') {
         order.paymentStatus = 'success'
         order.status = 'paid'
         await order.save()
       }
     }
-    // Rediriger vers le frontend
-    return response.redirect(`${Env.get('FRONTEND_URL', 'http://localhost:5173')}/checkout?status=success&ref=${ref}`)
+    const frontendUrl = Env.get('FRONTEND_URL', 'http://localhost:5173')
+    return response.redirect(`${frontendUrl}/checkout?status=success&ref=${ref}`)
   }
 
   /**
@@ -102,22 +102,48 @@ export default class PaymentsController {
 
   /**
    * POST /api/payments/webhook
-   * Webhook Jèko — appelé automatiquement par Jèko après paiement
+   * Webhook Jèko — transaction.completed
    */
   public async webhook({ request, response }: HttpContextContract) {
+    // 1. Vérification signature HMAC-SHA256 avec le raw body
+    const secret = Env.get('JEKO_WEBHOOK_SECRET', '')
+    if (secret) {
+      const crypto = await import('crypto')
+      const signature = request.header('jeko-signature') ?? ''
+      // AdonisJS expose le raw body via request.raw()
+      const rawBody = request.raw() ?? JSON.stringify(request.all())
+      const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
+      if (signature && signature !== expected) {
+        return response.unauthorized({ message: 'Signature invalide' })
+      }
+    }
+
     const body = request.all()
-    const reference = body.reference
-    const status = body.status // 'success' | 'failed' | 'pending'
+
+    // 2. Extraire la référence depuis transactionDetails (format Jèko)
+    const reference = body.transactionDetails?.reference ?? body.reference ?? null
+    const status = body.status // 'success' | 'error'
+    const transactionType = body.transactionType ?? 'payment'
+
+    // On ne traite que les paiements entrants
+    if (transactionType !== 'payment') {
+      return response.ok({ received: true, skipped: true })
+    }
 
     if (!reference) return response.badRequest({ message: 'Référence manquante' })
 
     const order = await Order.query().where('payment_reference', reference).first()
     if (!order) return response.notFound({ message: 'Commande introuvable' })
 
+    // Idempotence — ne pas retraiter si déjà à jour
+    if (order.paymentStatus === 'success') {
+      return response.ok({ received: true, skipped: true, orderId: order.id })
+    }
+
     if (status === 'success') {
       order.paymentStatus = 'success'
       order.status = 'paid'
-    } else if (status === 'failed' || status === 'expired') {
+    } else if (status === 'error' || status === 'failed' || status === 'expired') {
       order.paymentStatus = 'failed'
     }
 
@@ -148,15 +174,20 @@ export default class PaymentsController {
 
   /**
    * GET /api/payments/status/:orderId
-   * Polling du statut — vérifie aussi sur Jèko si le paiement est en attente
+   * Polling du statut — auth optionnelle (retour depuis redirection Jèko)
    */
   public async status({ params, auth, response }: HttpContextContract) {
-    const user = auth.use('api').user!
+    // Tenter l'auth sans bloquer si token absent/expiré
+    let userId: number | null = null
+    try {
+      await auth.use('api').authenticate()
+      userId = auth.use('api').user!.id
+    } catch {}
 
-    const order = await Order.query()
-      .where('id', params.orderId)
-      .where('user_id', user.id)
-      .first()
+    // Chercher la commande : par user_id si connecté, sinon juste par id
+    const query = Order.query().where('id', params.orderId)
+    if (userId) query.where('user_id', userId)
+    const order = await query.first()
 
     if (!order) return response.notFound({ message: 'Commande introuvable' })
 
