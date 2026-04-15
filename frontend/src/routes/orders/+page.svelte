@@ -72,7 +72,7 @@
   function imageUrl(img: string | null) {
     if (!img) return null
     if (img.startsWith('http')) return img
-    return `http://localhost:3333${img.split('/').map(p => encodeURIComponent(p)).join('/')}`
+    return `https://playshop.onrender.com${img.split('/').map(p => encodeURIComponent(p)).join('/')}`
   }
 
   function fmtDate(d: string) {
