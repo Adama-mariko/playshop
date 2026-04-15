@@ -42,7 +42,7 @@
   onMount(async () => {
     const status = $page.url.searchParams.get('status')
     const ref = $page.url.searchParams.get('ref')
-    if (status === 'success') { reference = ref ?? ''; step = 'confirmed'; return }
+    if (status === 'success') { reference = ref ?? ''; cart.clear(); step = 'confirmed'; return }
     if (status === 'error')   { reference = ref ?? ''; step = 'failed';    return }
 
     const existingOrderId = $page.url.searchParams.get('orderId')
@@ -98,7 +98,7 @@
         phoneNumber: phoneNumber.trim(),
       })
       orderId = orderData.order.id
-      cart.clear()
+      // Ne pas vider le panier ici — on le vide seulement si le paiement réussit
       await initiatePayment()
     } catch (e: any) {
       error = e.response?.data?.message ?? 'Erreur lors de la commande'
@@ -113,7 +113,7 @@
       if (pollCount > MAX_POLL) { clearInterval(pollInterval); return }
       try {
         const { data } = await api.get(`/payments/status/${orderId}`)
-        if (data.paymentStatus === 'success') { clearInterval(pollInterval); step = 'confirmed' }
+        if (data.paymentStatus === 'success') { clearInterval(pollInterval); cart.clear(); step = 'confirmed' }
         else if (data.paymentStatus === 'failed') { clearInterval(pollInterval); step = 'failed' }
       } catch {}
     }, 3000)
