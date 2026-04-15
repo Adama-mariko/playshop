@@ -4,9 +4,9 @@ import { Ignitor } from '@adonisjs/core/build/standalone'
 
 sourceMapSupport.install({ handleUncaughtExceptions: false })
 
-// Force le port et l'host depuis les variables d'environnement
+// Render injecte PORT automatiquement — on écoute sur 0.0.0.0 pour être accessible
 process.env.PORT = process.env.PORT || '3333'
-process.env.HOST = process.env.HOST || '127.0.0.1'
+process.env.HOST = '0.0.0.0'
 
 new Ignitor(__dirname)
   .httpServer()
