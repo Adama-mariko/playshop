@@ -123,7 +123,6 @@ export default class PaymentsController {
           return response.unauthorized({ message: 'Signature invalide' })
         }
       }
-      // Si pas de header signature → on accepte (tests Postman, dev local)
     }
 
     // 2. Extraire la référence depuis transactionDetails (format Jèko)
@@ -147,7 +146,7 @@ export default class PaymentsController {
     }
 
     if (status === 'success') {
-      order.paymentStatus = 'success'
+      order.paymentStatus = 'success' 
       order.status = 'paid'
     } else if (status === 'error' || status === 'failed' || status === 'expired') {
       order.paymentStatus = 'failed'

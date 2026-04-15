@@ -33,6 +33,7 @@ const bodyParserConfig: BodyParserConfig = {
   multipart: {
     autoProcess: true,
     processManually: [],
+    convertEmptyStringsToNull: true,
     encoding: 'utf-8',
     maxFields: 1000,
     limit: '20mb',

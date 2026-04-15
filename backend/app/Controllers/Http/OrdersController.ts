@@ -123,7 +123,7 @@ export default class OrdersController {
             quantity: schema.number([rules.unsigned(), rules.range(1, 999)]),
           })
         ),
-        paymentMethod: schema.enum(['wave', 'orange_money', 'orange', 'mtn', 'moov', 'djamo'] as const),
+        paymentMethod: schema.enum(['wave', 'orange', 'mtn', 'moov', 'djamo'] as const),
         phoneNumber: schema.string({ trim: true }, [
           rules.maxLength(20),
           rules.regex(/^(\+225|00225)?[0-9]{10}$/),
