@@ -56,7 +56,7 @@
     if (img.startsWith('http')) return img
     const parts = img.split('/')
     const encoded = parts.map(p => encodeURIComponent(p)).join('/')
-    return `http://localhost:3333${encoded}`
+    return `https://playshop.onrender.com${encoded}`
   }
 </script>
 
