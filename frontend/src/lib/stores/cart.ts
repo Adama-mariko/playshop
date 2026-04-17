@@ -1,4 +1,5 @@
 import { writable, derived } from 'svelte/store'
+import { browser } from '$app/environment'
 
 export interface CartItem {
   productId: number
@@ -8,7 +9,27 @@ export interface CartItem {
   image: string | null
 }
 
-const { subscribe, update, set } = writable<CartItem[]>([])
+const STORAGE_KEY = 'playshop_cart'
+
+function loadFromStorage(): CartItem[] {
+  if (!browser) return []
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveToStorage(items: CartItem[]) {
+  if (!browser) return
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+}
+
+const { subscribe, update, set } = writable<CartItem[]>(loadFromStorage())
+
+// Persiste automatiquement à chaque changement
+subscribe((items) => saveToStorage(items))
 
 export const cart = {
   subscribe,
@@ -39,6 +60,7 @@ export const cart = {
     )
   },
 
+  // Appelé uniquement après paiement confirmé
   clear() {
     set([])
   },
