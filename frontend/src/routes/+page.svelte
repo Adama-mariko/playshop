@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import api from '$lib/api'
   import { cart } from '$lib/stores/cart'
+  import { isAuthenticated } from '$lib/stores/auth'
 
   interface Product {
     id: number; name: string; description: string
@@ -56,7 +57,9 @@
       <p>Des milliers de produits livrés rapidement. Paiement sécurisé via Orange Money et Wave.</p>
       <div class="hero-actions">
         <a href="/products" class="btn btn-primary">Voir les produits</a>
-        <a href="/register" class="btn btn-outline" style="color:white;border-color:rgba(255,255,255,0.5)">Créer un compte</a>
+        {#if !$isAuthenticated}
+          <a href="/register" class="btn btn-outline" style="color:white;border-color:rgba(255,255,255,0.5)">Créer un compte</a>
+        {/if}
       </div>
     </div>
     <div class="hero-visual">
