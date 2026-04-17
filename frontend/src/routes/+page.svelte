@@ -79,13 +79,13 @@
 <section class="features">
   <div class="container features-grid">
     {#each [
-      { icon: '🚀', title: 'Livraison rapide', desc: 'Recevez vos commandes en un temps record' },
-      { icon: '🔒', title: 'Paiement sécurisé', desc: 'Orange Money et Wave acceptés' },
-      { icon: '↩️', title: 'Retours faciles', desc: 'Retour gratuit sous 30 jours' },
-      { icon: '💬', title: 'Support 24/7', desc: 'Une équipe disponible pour vous aider' },
+      { icon: 'fa-solid fa-rocket',          title: 'Livraison rapide',  desc: 'Recevez vos commandes en un temps record' },
+      { icon: 'fa-solid fa-lock',            title: 'Paiement sécurisé', desc: 'Orange Money et Wave acceptés' },
+      { icon: 'fa-solid fa-rotate-left',     title: 'Retours faciles',   desc: 'Retour gratuit sous 30 jours' },
+      { icon: 'fa-solid fa-headset',         title: 'Support 24/7',      desc: 'Une équipe disponible pour vous aider' },
     ] as f}
       <div class="feature-item">
-        <span class="feature-icon">{f.icon}</span>
+        <i class="feature-icon {f.icon}"></i>
         <h3>{f.title}</h3>
         <p>{f.desc}</p>
       </div>
@@ -163,7 +163,7 @@
   .features { padding:3rem 0; background:white; }
   .features-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1.5rem; }
   .feature-item { text-align:center; padding:1.5rem 1rem; }
-  .feature-icon { font-size:2rem; display:block; margin-bottom:0.75rem; }
+  .feature-icon { font-size:2rem; display:block; margin-bottom:0.75rem; color:var(--primary); }
   .feature-item h3 { font-size:1rem; font-weight:700; margin-bottom:0.4rem; }
   .feature-item p { font-size:0.88rem; color:var(--gray); }
   .products-section { padding:3rem 0; }

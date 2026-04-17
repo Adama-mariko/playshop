@@ -13,11 +13,11 @@
   }
 
   const PAY = [
-    { value: 'wave',   label: 'Wave',         icon: '/icons/wave.svg',   fallback: '🌊' },
-    { value: 'orange', label: 'Orange Money', icon: '/icons/orange.svg', fallback: '🟠' },
-    { value: 'mtn',    label: 'MTN MoMo',     icon: '/icons/mtn.svg',    fallback: '🟡' },
-    { value: 'moov',   label: 'Moov Money',   icon: '/icons/moov.svg',   fallback: '🔵' },
-    { value: 'djamo',  label: 'Djamo',        icon: '/icons/djamo.svg',  fallback: '💳' },
+    { value: 'wave',   label: 'Wave',         icon: 'fa-solid fa-water',         fallback: 'fa-solid fa-water' },
+    { value: 'orange', label: 'Orange Money', icon: 'fa-solid fa-circle',        fallback: 'fa-solid fa-circle' },
+    { value: 'mtn',    label: 'MTN MoMo',     icon: 'fa-solid fa-mobile-screen', fallback: 'fa-solid fa-mobile-screen' },
+    { value: 'moov',   label: 'Moov Money',   icon: 'fa-solid fa-bolt',          fallback: 'fa-solid fa-bolt' },
+    { value: 'djamo',  label: 'Djamo',        icon: 'fa-solid fa-credit-card',   fallback: 'fa-solid fa-credit-card' },
   ]
 
   let transactions = $state<Order[]>([])
@@ -33,7 +33,7 @@
   })
 
   function payLabel(m: string) { return PAY.find(p => p.value === m)?.label ?? m }
-  function payFallback(m: string) { return PAY.find(p => p.value === m)?.fallback ?? '💰' }
+  function payFallback(m: string) { return PAY.find(p => p.value === m)?.fallback ?? 'fa-solid fa-money-bill' }
 
   function fmtTime(d: string) {
     return new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'H')
@@ -101,7 +101,7 @@
             class:active={filterMethod === m}
             onclick={() => filterMethod = m}
           >
-            {#if m !== 'all'}{PAY.find(p => p.value === m)?.fallback}{/if}
+            {#if m !== 'all'}<i class="{PAY.find(p => p.value === m)?.fallback}"></i>{/if}
             {methodLabels[m]}
           </button>
         {/each}
@@ -158,7 +158,7 @@
                 <tr>
                   <td>
                     <div class="op-cell">
-                      <div class="op-avatar">{payFallback(tx.payment_method)}</div>
+                      <div class="op-avatar"><i class="{payFallback(tx.payment_method)}"></i></div>
                       <div class="op-info">
                         <span class="op-name">{payLabel(tx.payment_method)}</span>
                         <span class="op-phone">{tx.phone_number ?? '—'}</span>
@@ -286,8 +286,8 @@
   .op-avatar {
     width: 42px; height: 42px; border-radius: 50%;
     background: #f3f4f6; display: flex; align-items: center;
-    justify-content: center; font-size: 1.3rem; flex-shrink: 0;
-    border: 1.5px solid #e5e7eb;
+    justify-content: center; font-size: 1.1rem; flex-shrink: 0;
+    border: 1.5px solid #e5e7eb; color: var(--primary);
   }
   .op-info { display: flex; flex-direction: column; }
   .op-name { font-weight: 700; color: var(--dark); font-size: 0.9rem; }

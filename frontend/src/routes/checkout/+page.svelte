@@ -8,11 +8,11 @@
   type PayMethod = 'wave' | 'orange' | 'mtn' | 'moov' | 'djamo'
 
   const PAYMENT_OPTIONS: { value: PayMethod; label: string; icon: string; desc: string; prefixes: string[] }[] = [
-    { value: 'wave',   label: 'Wave',         icon: '🌊', desc: 'Paiement via Wave',         prefixes: ['01','05','06','07','08','09'] },
-    { value: 'orange', label: 'Orange Money', icon: '🟠', desc: 'Paiement via Orange Money', prefixes: ['07','08','09'] },
-    { value: 'mtn',    label: 'MTN MoMo',     icon: '🟡', desc: 'Paiement via MTN Mobile Money', prefixes: ['05','06'] },
-    { value: 'moov',   label: 'Moov Money',   icon: '🔵', desc: 'Paiement via Moov Money',   prefixes: ['01'] },
-    { value: 'djamo',  label: 'Djamo',        icon: '💳', desc: 'Paiement via Djamo',        prefixes: ['01','05','06','07','08','09'] },
+    { value: 'wave',   label: 'Wave',         icon: 'fa-solid fa-water',         desc: 'Paiement via Wave',             prefixes: ['01','05','06','07','08','09'] },
+    { value: 'orange', label: 'Orange Money', icon: 'fa-solid fa-circle',        desc: 'Paiement via Orange Money',     prefixes: ['07','08','09'] },
+    { value: 'mtn',    label: 'MTN MoMo',     icon: 'fa-solid fa-mobile-screen', desc: 'Paiement via MTN Mobile Money', prefixes: ['05','06'] },
+    { value: 'moov',   label: 'Moov Money',   icon: 'fa-solid fa-bolt',          desc: 'Paiement via Moov Money',       prefixes: ['01'] },
+    { value: 'djamo',  label: 'Djamo',        icon: 'fa-solid fa-credit-card',   desc: 'Paiement via Djamo',            prefixes: ['01','05','06','07','08','09'] },
   ]
 
   const NETWORK_LABELS: Record<string, string> = {
@@ -199,7 +199,7 @@
           {#each PAYMENT_OPTIONS as opt}
             <label class="pay-option" class:selected={paymentMethod === opt.value}>
               <input type="radio" bind:group={paymentMethod} value={opt.value} />
-              <div class="pay-icon">{opt.icon}</div>
+              <div class="pay-icon"><i class="{opt.icon}"></i></div>
               <div class="pay-info">
                 <strong>{opt.label}</strong>
                 <span>{opt.desc}</span>
@@ -223,7 +223,7 @@
           {#if loading}
             <span class="btn-spinner"></span> Traitement...
           {:else}
-            🔒 Payer {$cartTotal.toLocaleString('fr-FR')} FCFA
+            <i class="fa-solid fa-lock"></i> Payer {$cartTotal.toLocaleString('fr-FR')} FCFA
           {/if}
         </button>
       </div>
@@ -298,7 +298,7 @@
   }
   .pay-option input { display:none; }
   .pay-option.selected { border-color:var(--primary); background:rgba(233,69,96,0.04); }
-  .pay-icon { font-size:1.6rem; }
+  .pay-icon { font-size:1.6rem; color: var(--primary); width: 2rem; text-align: center; }
   .pay-info { flex:1; display:flex; flex-direction:column; }
   .pay-info strong { font-size:0.95rem; }
   .pay-info span { font-size:0.8rem; color:var(--gray); }

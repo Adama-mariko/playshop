@@ -5,7 +5,6 @@
   import { goto } from '$app/navigation'
   import { auth, isAuthenticated } from '$lib/stores/auth'
   import { cart, cartCount } from '$lib/stores/cart'
-
   let { children } = $props()
 
   onMount(() => auth.fetchMe())

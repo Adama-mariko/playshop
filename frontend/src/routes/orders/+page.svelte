@@ -30,11 +30,11 @@
   let deleting = $state(false)
 
   const PAY_OPTIONS = [
-    { value: 'wave',   label: 'Wave',         icon: '🌊' },
-    { value: 'orange', label: 'Orange Money', icon: '🟠' },
-    { value: 'mtn',    label: 'MTN MoMo',     icon: '🟡' },
-    { value: 'moov',   label: 'Moov Money',   icon: '🔵' },
-    { value: 'djamo',  label: 'Djamo',        icon: '💳' },
+    { value: 'wave',   label: 'Wave',         icon: 'fa-solid fa-water' },
+    { value: 'orange', label: 'Orange Money', icon: 'fa-solid fa-circle' },
+    { value: 'mtn',    label: 'MTN MoMo',     icon: 'fa-solid fa-mobile-screen' },
+    { value: 'moov',   label: 'Moov Money',   icon: 'fa-solid fa-bolt' },
+    { value: 'djamo',  label: 'Djamo',        icon: 'fa-solid fa-credit-card' },
   ]
 
   let payModal = $state<{ open: boolean; order: Order | null; method: string }>({
@@ -89,7 +89,7 @@
   }
 
   function payLabel(m: string) { return PAY_OPTIONS.find(o => o.value === m)?.label ?? m }
-  function payIcon(m: string)  { return PAY_OPTIONS.find(o => o.value === m)?.icon ?? '💰' }
+  function payIcon(m: string)  { return PAY_OPTIONS.find(o => o.value === m)?.icon ?? 'fa-solid fa-money-bill' }
 
   const statusCfg: Record<string, { label: string; color: string; bg: string; icon: string }> = {
     pending:   { label: 'En attente', color: '#92400e', bg: '#fef3c7', icon: 'schedule' },
@@ -135,7 +135,7 @@
         {#each PAY_OPTIONS as opt}
           <label class="pay-opt" class:sel={payModal.method === opt.value}>
             <input type="radio" bind:group={payModal.method} value={opt.value} />
-            <span class="pay-ico">{opt.icon}</span>
+            <span class="pay-ico"><i class="{opt.icon}"></i></span>
             <strong>{opt.label}</strong>
             {#if payModal.method === opt.value}
               <span class="material-icons-round chk">check_circle</span>
@@ -408,7 +408,7 @@
   }
   .pay-opt input { display: none; }
   .pay-opt.sel { border-color: var(--primary); background: rgba(233,69,96,0.04); }
-  .pay-ico { font-size: 1.3rem; }
+  .pay-ico { font-size: 1.3rem; color: var(--primary); width: 1.5rem; text-align: center; }
   .pay-opt strong { flex: 1; font-size: 0.88rem; }
   .chk { color: var(--primary); font-size: 1.1rem !important; }
 
