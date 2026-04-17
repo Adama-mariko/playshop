@@ -341,13 +341,9 @@
   .payment-card { padding:2rem; }
 
   .payment-header { display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem; padding-bottom:1.5rem; border-bottom:1px solid #f3f4f6; }
-  .payment-header h2 { font-size:1.3rem; margin-bottom:0.2rem; }
-  .payment-header p { color:var(--gray); font-size:0.9rem; }
   .payment-header.wave { border-left:4px solid #0066ff; padding-left:1rem; }
   .payment-header.orange { border-left:4px solid #ff6600; padding-left:1rem; }
   .pay-logo-icon { font-size:2.2rem !important; }
-  .payment-header.wave .pay-logo-icon { color:#0066ff; }
-  .payment-header.orange .pay-logo-icon { color:#ff6600; }
 
   /* QR Code */
   .qr-container { display:flex; flex-direction:column; align-items:center; gap:1rem; margin:1.5rem 0; }
@@ -370,7 +366,6 @@
   @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.3)} }
 
   .ref-line { text-align:center; margin-top:1rem; font-size:0.85rem; color:var(--gray); }
-  .ref-line code { background:#f3f4f6; padding:0.2rem 0.5rem; border-radius:4px; font-size:0.85rem; }
 
   /* Dev note */
   .dev-note { text-align:center; padding:0.75rem; background:#fef9c3; border-radius:8px; font-size:0.85rem; color:#854d0e; }

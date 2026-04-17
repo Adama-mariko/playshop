@@ -63,7 +63,7 @@
               </svg>
             </button>
             {#if menuOpen}
-              <div class="dropdown" onmouseleave={() => menuOpen = false}>
+              <div class="dropdown" onmouseleave={() => menuOpen = false} role="menu">
                 <div class="dropdown-header">
                   <strong>{$auth?.user?.name}</strong>
                   <span>{$auth?.user?.email}</span>

@@ -108,8 +108,8 @@
 
 <!-- ══ MODAL suppression ══ -->
 {#if deleteModal.open}
-  <div class="overlay" onclick={() => deleteModal = { open: false, order: null }}>
-    <div class="modal" onclick={e => e.stopPropagation()}>
+  <div class="overlay" onclick={() => deleteModal = { open: false, order: null }} onkeydown={() => deleteModal = { open: false, order: null }} role="button" tabindex="0">
+    <div class="modal" onclick={e => e.stopPropagation()} onkeydown={e => e.stopPropagation()} role="dialog" tabindex="-1">
       <div class="modal-ico danger"><span class="material-icons-round">delete_forever</span></div>
       <h3>Supprimer la commande ?</h3>
       <p>La commande <strong>#{deleteModal.order?.id}</strong> sera définitivement supprimée.</p>
@@ -126,8 +126,8 @@
 
 <!-- ══ MODAL paiement ══ -->
 {#if payModal.open}
-  <div class="overlay" onclick={() => payModal = { open: false, order: null, method: 'wave' }}>
-    <div class="modal" onclick={e => e.stopPropagation()}>
+  <div class="overlay" onclick={() => payModal = { open: false, order: null, method: 'wave' }} onkeydown={() => payModal = { open: false, order: null, method: 'wave' }} role="button" tabindex="0">
+    <div class="modal" onclick={e => e.stopPropagation()} onkeydown={e => e.stopPropagation()} role="dialog" tabindex="-1">
       <div class="modal-ico primary"><span class="material-icons-round">payment</span></div>
       <h3>Mode de paiement</h3>
       <p>Commande <strong>#{payModal.order?.id}</strong> — <strong>{fmtAmount(payModal.order?.total_amount ?? '0')} FCFA</strong></p>

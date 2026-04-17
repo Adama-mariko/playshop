@@ -38,7 +38,7 @@
   <h1 class="page-title">Ajouter un produit</h1>
 
   <form onsubmit={(e) => { e.preventDefault(); submit() }} class="product-form">
-    <div class="upload-zone" onclick={() => document.getElementById('img-input')?.click()}>
+    <div class="upload-zone" onclick={() => document.getElementById('img-input')?.click()} onkeydown={() => document.getElementById('img-input')?.click()} role="button" tabindex="0">>
       {#if imagePreview}
         <img src={imagePreview} alt="Aperçu" class="preview-img" />
         <div class="upload-overlay">Changer l'image</div>

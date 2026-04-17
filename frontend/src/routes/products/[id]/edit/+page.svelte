@@ -85,7 +85,7 @@
           <img src={imagePreview} alt="Aperçu" class="preview-img" />
           <div class="upload-overlay">Changer l'image</div>
         {:else if imageUrl(currentImage)}
-          <img src={imageUrl(currentImage)} alt="Image actuelle" class="preview-img" />
+          <img src={imageUrl(currentImage)} alt="" class="preview-img" />
           <div class="upload-overlay">Changer l'image</div>
         {:else}
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5">
