@@ -144,7 +144,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(10),
                               child: Image.network(
-                                'http://localhost:3333${widget.product!['image']}',
+                                '${ApiClient.baseUrl.replaceAll('/api', '')}${widget.product!['image']}',
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => _imagePlaceholder(),
                               ),

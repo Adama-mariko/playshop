@@ -53,9 +53,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
         'email': email,
         'password': password,
       });
+      // Inscription OK → connexion automatique
       await login(email, password);
+    } on DioException catch (e) {
+      String message = 'Erreur lors de l\'inscription';
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.unknown) {
+        message = 'Impossible de contacter le serveur. Vérifiez votre connexion.';
+      } else if (e.response?.data?['errors'] != null) {
+        // Erreurs de validation AdonisJS (tableau)
+        final errors = e.response!.data['errors'] as List<dynamic>;
+        message = errors.map((err) => err['message']).join('\n');
+      } else if (e.response?.data?['message'] != null) {
+        message = e.response!.data['message'];
+      }
+      state = state.copyWith(isLoading: false, error: message);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Erreur lors de l\'inscription');
+      state = state.copyWith(isLoading: false, error: 'Erreur inattendue : $e');
     }
   }
 

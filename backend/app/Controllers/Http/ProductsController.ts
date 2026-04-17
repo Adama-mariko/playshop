@@ -1,6 +1,20 @@
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Application from '@ioc:Adonis/Core/Application'
+import Env from '@ioc:Adonis/Core/Env'
 import Product from 'App/Models/Product'
+import { v2 as cloudinary } from 'cloudinary'
+
+// Config Cloudinary
+cloudinary.config({
+  cloud_name: Env.get('CLOUDINARY_CLOUD_NAME', ''),
+  api_key: Env.get('CLOUDINARY_API_KEY', ''),
+  api_secret: Env.get('CLOUDINARY_API_SECRET', ''),
+})
+
+async function uploadToCloudinary(filePath: string): Promise<string> {
+  const result = await cloudinary.uploader.upload(filePath, { folder: 'playshop' })
+  return result.secure_url
+}
 
 export default class ProductsController {
   /**
@@ -56,7 +70,13 @@ export default class ProductsController {
         name: safeName,
         overwrite: true,
       })
-      imagePath = `/uploads/${safeName}`
+      // Upload sur Cloudinary si configuré, sinon stockage local
+      if (Env.get('CLOUDINARY_CLOUD_NAME', '')) {
+        const localPath = Application.publicPath(`uploads/${safeName}`)
+        imagePath = await uploadToCloudinary(localPath)
+      } else {
+        imagePath = `/uploads/${safeName}`
+      }
     }
 
     const product = await Product.create({
@@ -98,7 +118,12 @@ export default class ProductsController {
         name: safeName,
         overwrite: true,
       })
-      product.image = `/uploads/${safeName}`
+      if (Env.get('CLOUDINARY_CLOUD_NAME', '')) {
+        const localPath = Application.publicPath(`uploads/${safeName}`)
+        product.image = await uploadToCloudinary(localPath)
+      } else {
+        product.image = `/uploads/${safeName}`
+      }
     }
 
     if (name) product.name = name
