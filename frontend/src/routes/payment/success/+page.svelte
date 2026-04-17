@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import { page } from '$app/stores'
   import api from '$lib/api'
+  import { cart } from '$lib/stores/cart'
 
   let status = $state<'loading' | 'success' | 'failed'>('loading')
   let reference = $state('')
@@ -20,7 +21,6 @@
     if (!reference) { status = 'failed'; return }
     if (hasError) { status = 'failed'; return }
 
-    // Trouver la commande via la référence en cherchant dans les commandes
     try {
       const { data: orders } = await api.get('/orders')
       const order = orders.find((o: any) => o.payment_reference === reference)
@@ -30,13 +30,15 @@
         amount = parseFloat(order.total_amount)
         paymentMethod = order.payment_method ?? ''
 
-        // Si pas encore marqué success, vérifier via le statut
         if (order.payment_status !== 'success') {
           const { data: st } = await api.get(`/payments/status/${order.id}`)
           status = st.paymentStatus === 'success' ? 'success' : 'failed'
         } else {
           status = 'success'
         }
+
+        // Vider le panier uniquement si paiement confirmé
+        if (status === 'success') cart.clear()
       } else {
         status = 'failed'
       }
