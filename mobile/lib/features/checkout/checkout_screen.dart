@@ -132,8 +132,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with WidgetsBin
       });
       _orderId = orderRes.data['order']['id'];
 
-      // 2. Initier le paiement Jèko
-      final payRes = await ApiClient.instance.post('/payments/initiate', data: {'orderId': _orderId});
+      // 2. Initier le paiement Jèko avec le paramètre mobile=1
+      final payRes = await ApiClient.instance.post('/payments/initiate', data: {
+        'orderId': _orderId,
+        'mobile': '1', // Indique que la requête vient du mobile
+      });
       _reference  = payRes.data['reference'];
       _paymentUrl = payRes.data['paymentUrl'];
 

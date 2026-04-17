@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:app_links/app_links.dart';
 import 'core/providers/auth_provider.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/home/home_screen.dart';
@@ -21,12 +22,86 @@ void main() {
   runApp(const ProviderScope(child: PlayShopApp()));
 }
 
-class PlayShopApp extends StatelessWidget {
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+class PlayShopApp extends StatefulWidget {
   const PlayShopApp({super.key});
+
+  @override
+  State<PlayShopApp> createState() => _PlayShopAppState();
+}
+
+class _PlayShopAppState extends State<PlayShopApp> {
+  late AppLinks _appLinks;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinks();
+  }
+
+  Future<void> _initDeepLinks() async {
+    _appLinks = AppLinks();
+    
+    // Gérer les deep links quand l'app est déjà ouverte
+    _appLinks.uriLinkStream.listen((uri) {
+      _handleDeepLink(uri);
+    });
+  }
+
+  void _handleDeepLink(Uri uri) {
+    // playshop://payment/success?ref=PS-123
+    // playshop://payment/error?ref=PS-123
+    if (uri.scheme == 'playshop') {
+      if (uri.host == 'payment') {
+        final ref = uri.queryParameters['ref'];
+        if (uri.path.contains('success')) {
+          // Rediriger vers l'écran des commandes avec un message de succès
+          navigatorKey.currentState?.pushNamedAndRemoveUntil('/orders', (r) => false);
+          // Afficher un snackbar de confirmation
+          Future.delayed(const Duration(milliseconds: 500), () {
+            final context = navigatorKey.currentContext;
+            if (context != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text('Paiement confirmé ! Réf: $ref')),
+                  ]),
+                  backgroundColor: const Color(0xFF059669),
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+            }
+          });
+        } else if (uri.path.contains('error')) {
+          navigatorKey.currentState?.pushNamedAndRemoveUntil('/orders', (r) => false);
+          Future.delayed(const Duration(milliseconds: 500), () {
+            final context = navigatorKey.currentContext;
+            if (context != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Row(children: [
+                    Icon(Icons.error_outline, color: Colors.white),
+                    SizedBox(width: 8),
+                    Expanded(child: Text('Paiement échoué. Veuillez réessayer.')),
+                  ]),
+                  backgroundColor: Color(0xFFDC2626),
+                  duration: Duration(seconds: 4),
+                ),
+              );
+            }
+          });
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'PlayShop',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

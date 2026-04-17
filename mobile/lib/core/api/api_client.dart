@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiClient {
   // Utilise l'IP locale pour les appareils physiques
   // localhost = émulateur Android, 10.0.2.2 = émulateur Android (alternative)
-  static const String baseUrl = 'http://10.1.34.82:3333/api';
+  static const String baseUrl = 'https://playshop.onrender.com/api';
 
   static final Dio _dio = _createDio();
 

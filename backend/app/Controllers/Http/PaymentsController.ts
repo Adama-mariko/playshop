@@ -29,6 +29,8 @@ export default class PaymentsController {
 
     const reference = `PS-${Date.now()}-${order.id}`
     const appUrl = Env.get('APP_URL', 'http://localhost:3333')
+    const isMobile = request.input('mobile') === '1'
+    const mobileSuffix = isMobile ? '&mobile=1' : ''
 
     try {
       // Récupérer le storeId
@@ -41,8 +43,8 @@ export default class PaymentsController {
         currency: 'XOF',
         reference,
         paymentMethod: JekoService.mapPaymentMethod(order.paymentMethod ?? 'wave'),
-        successUrl: `${appUrl}/api/payments/jeko-success?ref=${reference}`,
-        errorUrl: `${appUrl}/api/payments/jeko-error?ref=${reference}`,
+        successUrl: `${appUrl}/api/payments/jeko-success?ref=${reference}${mobileSuffix}`,
+        errorUrl: `${appUrl}/api/payments/jeko-error?ref=${reference}${mobileSuffix}`,
       })
 
       // Sauvegarder la référence et l'ID Jèko
@@ -81,9 +83,21 @@ export default class PaymentsController {
         await order.save()
       }
     }
-    const frontendUrl = Env.get('FRONTEND_URL', 'http://localhost:5173')
-    // Redirection vers la page de confirmation avec message de succès
-    return response.redirect(`${frontendUrl}/payment/success?ref=${ref}`)
+    
+    // Détecter si la requête vient du mobile via le User-Agent ou un paramètre
+    const userAgent = request.header('User-Agent', '').toLowerCase()
+    const isMobile = request.input('mobile') === '1' || 
+                     userAgent.includes('dart') || 
+                     userAgent.includes('flutter')
+    
+    if (isMobile) {
+      // Redirection vers l'app mobile via deep link
+      return response.redirect(`playshop://payment/success?ref=${ref}`)
+    } else {
+      // Redirection vers le frontend web
+      const frontendUrl = Env.get('FRONTEND_URL', 'http://localhost:5173')
+      return response.redirect(`${frontendUrl}/payment/success?ref=${ref}`)
+    }
   }
 
   public async jekoError({ request, response }: HttpContextContract) {
@@ -95,9 +109,18 @@ export default class PaymentsController {
         await order.save()
       }
     }
-    const frontendUrl = Env.get('FRONTEND_URL', 'http://localhost:5173')
-    // Redirection vers la page de confirmation avec statut échec
-    return response.redirect(`${frontendUrl}/payment/success?ref=${ref}&error=1`)
+    
+    const userAgent = request.header('User-Agent', '').toLowerCase()
+    const isMobile = request.input('mobile') === '1' || 
+                     userAgent.includes('dart') || 
+                     userAgent.includes('flutter')
+    
+    if (isMobile) {
+      return response.redirect(`playshop://payment/error?ref=${ref}`)
+    } else {
+      const frontendUrl = Env.get('FRONTEND_URL', 'http://localhost:5173')
+      return response.redirect(`${frontendUrl}/payment/success?ref=${ref}&error=1`)
+    }
   }
 
   /**
